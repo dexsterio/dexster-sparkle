@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Chat, CustomFolder } from '@/types/chat';
 import ContextMenu, { ContextMenuItem } from './ContextMenu';
 import { Search, Edit3, ChevronDown, ChevronRight } from 'lucide-react';
@@ -43,6 +43,17 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const newMenuRef = useRef<HTMLDivElement>(null);
+
+  // Click-outside for new chat dropdown
+  useEffect(() => {
+    if (!showNewMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (newMenuRef.current && !newMenuRef.current.contains(e.target as Node)) setShowNewMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showNewMenu]);
 
   const allFolders = [...DEFAULT_FOLDERS, ...(customFolders || []).map(f => ({ id: f.id, label: `${f.emoji} ${f.name}` }))];
 
@@ -106,15 +117,15 @@ const Sidebar: React.FC<SidebarProps> = ({
           <button onClick={() => setShowSearch(!showSearch)} className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground">
             <Search size={18} />
           </button>
-          <div className="relative">
+          <div className="relative" ref={newMenuRef}>
             <button onClick={() => setShowNewMenu(!showNewMenu)} className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground">
               <Edit3 size={18} />
             </button>
             {showNewMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-popover/95 backdrop-blur-xl border border-border rounded-xl shadow-lg z-50 min-w-[180px] animate-[contextIn_0.15s_ease-out]">
-                <button onClick={() => { setShowNewMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground">💬 New Chat</button>
-                <button onClick={() => { setShowNewMenu(false); onCreateGroup(); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground">👥 New Group</button>
-                <button onClick={() => { setShowNewMenu(false); onCreateChannel(); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground">📢 New Channel</button>
+              <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-xl z-50 min-w-[180px] animate-[contextIn_0.15s_ease-out]">
+                <button onClick={() => { setShowNewMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors rounded-t-xl">💬 New Chat</button>
+                <button onClick={() => { setShowNewMenu(false); onCreateGroup(); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">👥 New Group</button>
+                <button onClick={() => { setShowNewMenu(false); onCreateChannel(); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors rounded-b-xl">📢 New Channel</button>
               </div>
             )}
           </div>
@@ -125,7 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       {showSearch && (
         <div className="px-4 pb-2 animate-[slideDown_0.2s_ease-out]">
           <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..."
-            className="w-full px-4 py-2 rounded-full bg-muted border-none text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary" />
+            className="w-full px-4 py-2 rounded-full bg-muted border border-border/50 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary" />
         </div>
       )}
 
@@ -133,11 +144,14 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex gap-1 px-4 pb-2 overflow-x-auto scrollbar-none">
         {allFolders.map(f => {
           const unread = folderUnread(f.id);
+          const isActive = activeFolder === f.id;
           return (
             <button key={f.id} onClick={() => setActiveFolder(f.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${activeFolder === f.id ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}>
               {f.label}
-              {unread > 0 && <span className="bg-primary-foreground/20 text-[10px] px-1.5 rounded-full">{unread}</span>}
+              {unread > 0 && (
+                <span className={`text-[10px] px-1.5 rounded-full ${isActive ? 'bg-white/30 text-white' : 'bg-primary-foreground/20'}`}>{unread}</span>
+              )}
             </button>
           );
         })}
@@ -165,9 +179,9 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold text-white" style={{ background: `hsl(${chat.avatarColor})` }}>{chat.avatar}</div>
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-foreground">{chat.name}</span>
-              <p className="text-xs text-muted-foreground truncate">{chat.lastMessage}</p>
+              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{chat.lastMessage}</p>
             </div>
-            <span className="text-[11px] text-muted-foreground">{chat.lastTime}</span>
+            <span className="text-[11px] text-muted-foreground flex-shrink-0">{chat.lastTime}</span>
           </button>
         ))}
 
@@ -176,14 +190,15 @@ const Sidebar: React.FC<SidebarProps> = ({
           const nextIsPinned = filteredChats[i + 1]?.pinned;
           const draft = chatDrafts[chat.id];
           const isSaved = chat.id === 'saved';
+          const isActive = activeChat === chat.id;
           return (
             <React.Fragment key={chat.id}>
               <button onClick={() => onSelectChat(chat.id)} onContextMenu={(e) => handleContextMenu(e, chat.id)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${activeChat === chat.id ? 'bg-primary/[0.18]' : 'hover:bg-dex-hover'}`}>
+                className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${isActive ? 'bg-primary/[0.15] border-l-[3px] border-l-primary' : 'hover:bg-dex-hover border-l-[3px] border-l-transparent'}`}>
                 <div className="relative flex-shrink-0">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold text-white ${isSaved ? 'text-2xl' : ''}`}
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold text-white ${isSaved ? 'bg-primary/20 text-2xl' : ''}`}
                     style={isSaved ? {} : { background: `hsl(${chat.avatarColor})` }}>
-                    {isSaved ? <span className="bg-primary/20 w-full h-full rounded-full flex items-center justify-center">🔖</span> : chat.avatar}
+                    {isSaved ? '🔖' : chat.avatar}
                   </div>
                   {chat.online && !isSaved && (
                     <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-dex-online border-2 border-card" style={{ animation: 'pulseOnline 2s infinite' }} />
@@ -201,7 +216,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <span className="text-[11px] text-muted-foreground flex-shrink-0">{chat.lastTime}</span>
                   </div>
                   <div className="flex items-center justify-between mt-0.5">
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="text-xs text-muted-foreground truncate max-w-[200px]">
                       {chat.typing ? (
                         <span className="text-primary">typing...</span>
                       ) : draft ? (
@@ -214,14 +229,18 @@ const Sidebar: React.FC<SidebarProps> = ({
                       )}
                     </p>
                     {(chat.unread > 0 || chat.markedUnread) && (
-                      <span className={`text-[11px] font-bold px-1.5 min-w-[20px] h-5 flex items-center justify-center rounded-full ${chat.muted ? 'bg-muted-foreground/40' : 'bg-primary'} text-primary-foreground`}>
-                        {chat.markedUnread && chat.unread === 0 ? '' : chat.unread}
-                      </span>
+                      chat.markedUnread && chat.unread === 0 ? (
+                        <span className="w-3 h-3 rounded-full bg-primary flex-shrink-0 ml-2" />
+                      ) : (
+                        <span className={`text-[11px] font-bold px-1.5 min-w-[20px] h-5 flex items-center justify-center rounded-full flex-shrink-0 ml-2 ${chat.muted ? 'bg-muted-foreground/40' : 'bg-primary'} text-primary-foreground`}>
+                          {chat.unread}
+                        </span>
+                      )
                     )}
                   </div>
                 </div>
               </button>
-              {isPinned && !nextIsPinned && <div className="h-px bg-border mx-4" />}
+              {isPinned && !nextIsPinned && <div className="h-px bg-border/60 mx-4 my-0.5" />}
             </React.Fragment>
           );
         })}

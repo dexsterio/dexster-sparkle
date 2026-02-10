@@ -27,7 +27,6 @@ interface ChatAreaProps {
   onSaveEdit: (text: string) => void;
   onHeaderClick: () => void;
   typingUsers: string[];
-  // Select mode
   selectMode: boolean;
   selectedMessages: Set<string>;
   onToggleSelect: (msgId: string) => void;
@@ -36,7 +35,6 @@ interface ChatAreaProps {
   onBulkDelete: () => void;
   onBulkForward: () => void;
   onBulkCopy: () => void;
-  // Search
   showSearch: boolean;
   onToggleSearch: () => void;
   searchQuery: string;
@@ -44,17 +42,12 @@ interface ChatAreaProps {
   searchResults: string[];
   searchIndex: number;
   onNavigateSearch: (dir: 'up' | 'down') => void;
-  // Emoji
   recentEmojis: string[];
-  // Pin
   pinnedIndex: number;
   onCyclePinned: () => string | undefined;
-  // Draft
   draft?: string;
-  // Attachments
   onCreatePoll: () => void;
   onRollDice: (emoji: string) => void;
-  // Schedule & effects
   onSchedule: (text: string) => void;
   pendingEffect: MessageEffect | null;
   onSetEffect: (effect: MessageEffect | null) => void;
@@ -84,6 +77,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const prevMsgCountRef = useRef(messages.length);
+  const prevHeightRef = useRef(20);
 
   // Restore draft
   useEffect(() => {
@@ -136,7 +130,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (e.ctrlKey) {
-        // Silent send
         handleSend(true);
       } else {
         handleSend();
@@ -144,10 +137,16 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     }
   };
 
+  // Textarea auto-expand — only reset when content actually changes
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = '20px';
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px';
+      const ta = textareaRef.current;
+      ta.style.height = '20px';
+      const newHeight = Math.min(ta.scrollHeight, 120);
+      if (newHeight !== prevHeightRef.current) {
+        prevHeightRef.current = newHeight;
+      }
+      ta.style.height = newHeight + 'px';
     }
   }, [inputText]);
 
@@ -174,7 +173,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   // Group messages by date
   const groupedMessages: { date: string; label: string; msgs: Message[] }[] = [];
   let currentDate = '';
-  let firstUnreadFound = false;
   for (const msg of messages) {
     if (msg.date !== currentDate) {
       currentDate = msg.date;
@@ -228,7 +226,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white" style={{ background: `hsl(${chat.avatarColor})` }}>
             {chat.avatar}
           </div>
-          {chat.online && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-dex-online border-2 border-background" />}
+          {chat.online && <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-dex-online border-2 border-background" />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -241,14 +239,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                 {typingText}
                 <span className="inline-flex ml-1 gap-0.5">
                   {[0, 1, 2].map(i => (
-                    <span key={i} className="w-1 h-1 rounded-full bg-primary inline-block" style={{ animation: `typing 1.4s infinite`, animationDelay: `${i * 0.2}s` }} />
+                    <span key={i} className="w-1.5 h-1.5 rounded-full bg-primary inline-block" style={{ animation: `typing 1.4s infinite`, animationDelay: `${i * 0.2}s` }} />
                   ))}
                 </span>
               </span>
             ) : statusText}
           </p>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <button className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground" onClick={e => { e.stopPropagation(); onToggleSearch(); }}>
             <Search size={18} />
           </button>
@@ -275,7 +273,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* Pin Banner */}
       {pinnedMessages.length > 0 && !showSearch && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-primary/[0.08] border-b border-primary/20 animate-[slideDown_0.2s_ease-out] cursor-pointer"
+        <div className="flex items-center gap-2 px-4 py-2 bg-primary/[0.12] border-b border-primary/25 animate-[slideDown_0.2s_ease-out] cursor-pointer"
           onClick={() => { const id = onCyclePinned(); if (id) scrollToMessage(id); }}>
           <div className="w-0.5 h-8 bg-primary rounded-full" />
           <div className="flex-1 min-w-0">
@@ -298,14 +296,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         {groupedMessages.map(group => (
           <React.Fragment key={group.date}>
             <div className="flex justify-center my-3 sticky top-0 z-10">
-              <span className="text-xs text-muted-foreground bg-dex-surface/80 backdrop-blur px-3.5 py-1 rounded-xl">{group.label}</span>
+              <span className="text-xs text-muted-foreground bg-dex-surface/90 backdrop-blur-sm px-3.5 py-1 rounded-xl shadow-sm">{group.label}</span>
             </div>
             {group.msgs.map(msg => (
               <React.Fragment key={msg.id}>
                 {msg.id === firstUnreadId && (
-                  <div className="flex items-center gap-3 my-3">
+                  <div className="flex items-center gap-3 my-3 py-1">
                     <div className="flex-1 h-px bg-primary/40" />
-                    <span className="text-[11px] font-semibold text-primary">Unread Messages</span>
+                    <span className="text-[11px] font-bold text-primary uppercase tracking-wider">Unread Messages</span>
                     <div className="flex-1 h-px bg-primary/40" />
                   </div>
                 )}
@@ -338,28 +336,30 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Scroll to bottom FAB */}
-      {showScrollBtn && (
+      {/* Scroll to bottom FAB — smooth transition */}
+      <div
+        className={`absolute bottom-24 right-6 z-10 transition-all duration-200 ${showScrollBtn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
+      >
         <button
           onClick={() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); setNewMsgCount(0); }}
-          className="absolute bottom-24 right-6 w-10 h-10 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-muted-foreground hover:bg-dex-hover transition-colors animate-[fadeIn_0.2s_ease-out] z-10"
+          className="w-10 h-10 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-muted-foreground hover:bg-dex-hover transition-colors"
         >
           <ArrowDown size={18} />
           {newMsgCount > 0 && (
             <span className="absolute -top-2 -right-1 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 rounded-full min-w-[18px] text-center">{newMsgCount}</span>
           )}
         </button>
-      )}
+      </div>
 
       {/* Select Mode Toolbar */}
       {selectMode && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-card border-t border-border animate-[slideUp_0.2s_ease-out]">
           <button onClick={onExitSelect} className="p-1.5 rounded-lg hover:bg-dex-hover text-muted-foreground"><X size={16} /></button>
           <span className="text-sm text-foreground font-medium flex-1">{selectedMessages.size} selected</span>
-          <button onClick={onSelectAll} className="px-3 py-1 rounded-lg text-xs bg-muted hover:bg-muted/80 text-foreground">Select All</button>
-          <button onClick={onBulkCopy} disabled={selectedMessages.size === 0} className="px-3 py-1 rounded-lg text-xs bg-muted hover:bg-muted/80 text-foreground disabled:opacity-40">📋 Copy</button>
-          <button onClick={onBulkForward} disabled={selectedMessages.size === 0} className="px-3 py-1 rounded-lg text-xs bg-muted hover:bg-muted/80 text-foreground disabled:opacity-40">↗️ Forward</button>
-          <button onClick={onBulkDelete} disabled={selectedMessages.size === 0} className="px-3 py-1 rounded-lg text-xs bg-destructive/20 hover:bg-destructive/30 text-destructive disabled:opacity-40">🗑️ Delete</button>
+          <button onClick={onSelectAll} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground h-8">Select All</button>
+          <button onClick={onBulkCopy} disabled={selectedMessages.size === 0} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground disabled:opacity-40 h-8">📋 Copy</button>
+          <button onClick={onBulkForward} disabled={selectedMessages.size === 0} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground disabled:opacity-40 h-8">↗️ Forward</button>
+          <button onClick={onBulkDelete} disabled={selectedMessages.size === 0} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-destructive/20 hover:bg-destructive/30 text-destructive disabled:opacity-40 h-8">🗑️ Delete</button>
         </div>
       )}
 
@@ -388,7 +388,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             { label: '> Quote', wrap: '> ' },
           ].map(f => (
             <button key={f.label} onClick={() => insertFormat(f.wrap)}
-              className="px-2.5 py-1 rounded text-xs font-semibold bg-muted/50 hover:bg-muted text-foreground transition-colors">
+              className="px-2.5 py-1 rounded text-xs font-semibold bg-muted/50 hover:bg-primary/20 active:bg-primary/30 text-foreground transition-colors">
               {f.label}
             </button>
           ))}
@@ -408,7 +408,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               <Paperclip size={18} />
             </button>
             {showAttachMenu && (
-              <div className="absolute bottom-full left-0 mb-2 bg-popover/95 backdrop-blur-xl border border-border rounded-xl shadow-lg z-30 min-w-[180px] animate-[contextIn_0.15s_ease-out]">
+              <div className="absolute bottom-full left-0 mb-2 bg-popover border border-border rounded-xl shadow-xl z-30 min-w-[180px] animate-[contextIn_0.15s_ease-out]">
                 {[
                   { label: '📷 Photo/Video', action: () => {} },
                   { label: '📄 Document', action: () => {} },
@@ -417,26 +417,26 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                   { label: '👤 Contact', action: () => {} },
                 ].map(item => (
                   <button key={item.label} onClick={() => { item.action(); setShowAttachMenu(false); }}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground">{item.label}</button>
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">{item.label}</button>
                 ))}
-                <div className="h-px bg-border mx-3" />
-                <div className="px-4 py-2 text-[10px] text-muted-foreground uppercase tracking-wider">Roll Dice</div>
-                <div className="flex gap-1 px-3 pb-2">
+                <div className="h-px bg-border mx-3 my-1" />
+                <div className="px-4 py-1.5 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Roll Dice</div>
+                <div className="flex gap-1.5 px-3 pb-2.5">
                   {DICE_EMOJIS.map(emoji => (
                     <button key={emoji} onClick={() => { onRollDice(emoji); setShowAttachMenu(false); }}
-                      className="text-lg p-1 hover:scale-125 transition-transform">{emoji}</button>
+                      className="text-xl p-1.5 hover:scale-125 transition-transform rounded-lg hover:bg-dex-hover">{emoji}</button>
                   ))}
                 </div>
               </div>
             )}
           </div>
 
-          <div className="flex-1 flex items-end bg-muted rounded-[20px] px-3 py-1.5 relative">
+          <div className="flex-1 flex items-end bg-muted rounded-[20px] px-3 py-1.5 relative border border-border/50">
             <textarea ref={textareaRef} value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={handleKeyDown}
               placeholder={chat.type === 'channel' ? 'Broadcast a message...' : 'Message...'} rows={1}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none leading-5"
               style={{ minHeight: '20px', maxHeight: '120px' }} />
-            <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-1 text-muted-foreground hover:text-foreground ml-1 flex-shrink-0">
+            <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-1 text-muted-foreground hover:text-foreground ml-1 flex-shrink-0 transition-colors">
               <Smile size={18} />
             </button>
             {showEmojiPicker && (
@@ -451,14 +451,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                 <Sparkles size={16} />
               </button>
               {showEffectPicker && (
-                <div className="absolute bottom-full right-0 mb-2 bg-popover/95 backdrop-blur-xl border border-border rounded-xl shadow-lg z-30 min-w-[150px] animate-[contextIn_0.15s_ease-out]">
+                <div className="absolute bottom-full right-0 mb-2 bg-popover border border-border rounded-xl shadow-xl z-30 min-w-[150px] animate-[contextIn_0.15s_ease-out]">
                   {([['🎊 Confetti', 'confetti'], ['🎆 Fireworks', 'fireworks'], ['❤️ Hearts', 'hearts']] as const).map(([label, effect]) => (
                     <button key={effect} onClick={() => { onSetEffect(pendingEffect === effect ? null : effect); onToggleEffectPicker(); }}
-                      className={`flex items-center gap-2 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground ${pendingEffect === effect ? 'bg-primary/10' : ''}`}>{label}</button>
+                      className={`flex items-center gap-2 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors ${pendingEffect === effect ? 'bg-primary/10' : ''}`}>{label}</button>
                   ))}
-                  <div className="h-px bg-border mx-3" />
+                  <div className="h-px bg-border mx-3 my-1" />
                   <button onClick={() => { onSchedule(inputText); onToggleEffectPicker(); }}
-                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground">
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">
                     <Clock size={14} /> Schedule
                   </button>
                 </div>
@@ -467,13 +467,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           )}
 
           <button onClick={() => handleSend()}
-            className={`p-2.5 rounded-full flex-shrink-0 transition-all ${inputText.trim() ? 'bg-gradient-to-br from-primary to-[hsl(252,60%,48%)] text-primary-foreground scale-100' : 'text-muted-foreground scale-95'}`}>
+            className={`p-2.5 rounded-full flex-shrink-0 transition-all duration-200 ease-out ${inputText.trim() ? 'bg-gradient-to-br from-primary to-[hsl(252,60%,48%)] text-primary-foreground scale-100' : 'text-muted-foreground scale-95'}`}>
             {editMsg ? <Check size={18} /> : inputText.trim() ? <Send size={18} /> : <Mic size={18} />}
           </button>
 
           {pendingEffect && (
-            <div className="absolute -top-8 right-16 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-              Effect: {pendingEffect}
+            <div className="flex items-center gap-1 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full ml-1 flex-shrink-0">
+              {pendingEffect === 'confetti' ? '🎊' : pendingEffect === 'fireworks' ? '🎆' : '❤️'} {pendingEffect}
+              <button onClick={() => onSetEffect(null)} className="ml-0.5 hover:text-destructive">✕</button>
             </div>
           )}
         </div>
