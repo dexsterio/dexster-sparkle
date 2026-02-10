@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Chat, Message, Comment, CustomFolder, MessageEffect } from '@/types/chat';
-import { initialChats, initialMessages, initialComments } from '@/data/mockData';
+import { initialChats, initialMessages, initialComments, users } from '@/data/mockData';
 import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import InfoPanel from './InfoPanel';
@@ -548,7 +548,7 @@ const DexsterChat: React.FC = () => {
   const createGroup = useCallback((name: string, memberIds: string[], description: string) => {
     const id = `grp_${Date.now()}`;
     const members = memberIds.map(mid => {
-      const u = Object.values(require('@/data/mockData').users).find((u: any) => u.id === mid) as any;
+      const u = Object.values(users).find((usr: any) => usr.id === mid) as any;
       return u || { id: mid, name: mid, avatar: mid.slice(0, 2).toUpperCase(), color: '252 75% 64%', online: false };
     });
     const newChat: Chat = {
