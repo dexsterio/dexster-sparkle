@@ -131,3 +131,29 @@
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes diceRoll {
+  0% { transform: rotate(0deg) scale(0.5); opacity: 0; }
+  50% { transform: rotate(180deg) scale(1.2); }
+  100% { transform: rotate(360deg) scale(1); opacity: 1; }
+}
+@keyframes confettiPiece {
+  0% { transform: translateY(0) rotate(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-200px) rotate(720deg) scale(0); opacity: 0; }
+}
+@keyframes fireworkBurst {
+  0% { transform: scale(0); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.8; }
+  100% { transform: scale(2); opacity: 0; }
+}
+@keyframes floatHeart {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-100px) scale(0.5); opacity: 0; }
+}
+@keyframes highlightSearch {
+  0%, 100% { background: transparent; }
+  50% { background: hsla(45, 97%, 71%, 0.3); }
+}
+@keyframes deleteCollapse {
+  0% { opacity: 1; max-height: 200px; transform: scale(1); }
+  100% { opacity: 0; max-height: 0; transform: scale(0.95); padding: 0; margin: 0; overflow: hidden; }
+}
