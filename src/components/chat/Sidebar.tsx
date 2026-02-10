@@ -23,6 +23,7 @@ interface SidebarProps {
   customFolders: CustomFolder[];
   onMoveToFolder: (chatId: string, folderId: string) => void;
   chatDrafts: Record<string, string>;
+  onClearHistory: (id: string) => void;
 }
 
 const DEFAULT_FOLDERS = [
@@ -36,6 +37,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   chats, archivedChats, activeChat, onSelectChat, onPinChat, onMuteChat, onMuteWithDuration,
   onDeleteChat, onMarkRead, onMarkUnread, onArchiveChat, onUnarchiveChat, onBlockUser,
   onCreateChannel, onCreateGroup, onCreateFolder, customFolders, onMoveToFolder, chatDrafts,
+  onClearHistory,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -100,6 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     ...(isArchived
       ? [{ label: 'Unarchive', icon: '📂', onClick: () => onUnarchiveChat(contextChat.id) }]
       : [{ label: 'Archive chat', icon: '📁', onClick: () => onArchiveChat(contextChat.id) }]),
+    { label: 'Clear history', icon: '🧹', onClick: () => onClearHistory(contextChat.id) },
     ...(customFolders.length > 0 ? [{ label: 'Move to folder...', icon: '📂', onClick: () => {} }] : []),
     ...(contextChat.type === 'personal' ? [{ label: 'Block user', icon: '🚫', danger: true, onClick: () => onBlockUser(contextChat.id) }] : []),
     { label: contextChat.type === 'group' || contextChat.type === 'channel' ? 'Leave' : 'Delete chat', icon: '🗑️', danger: true, onClick: () => onDeleteChat(contextChat.id) },

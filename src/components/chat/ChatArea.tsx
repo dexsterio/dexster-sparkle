@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chat, Message, MessageEffect } from '@/types/chat';
 import MessageBubble from './MessageBubble';
 import EmojiPicker from './EmojiPicker';
-import { Search, MoreVertical, ArrowDown, ArrowUp, X, Paperclip, Smile, Mic, Send, Check, Type, Clock, Sparkles } from 'lucide-react';
+import { Search, MoreVertical, ArrowDown, ArrowUp, X, Paperclip, Smile, Mic, Send, Check, Type, Clock, Sparkles, Bell, BellOff, Settings, BarChart3, Trash2, LogOut, Ban, UserPlus } from 'lucide-react';
 
 interface ChatAreaProps {
   chat: Chat;
@@ -53,6 +53,17 @@ interface ChatAreaProps {
   onSetEffect: (effect: MessageEffect | null) => void;
   onToggleEffectPicker: () => void;
   showEffectPicker: boolean;
+  // New props for header menu actions
+  onMuteChat: () => void;
+  onClearHistory: () => void;
+  onLeaveChat: () => void;
+  onBlockUser: () => void;
+  onDeleteChat: () => void;
+  onManageChannel: () => void;
+  onManageGroup: () => void;
+  onReport: () => void;
+  slowMode?: number;
+  slowModeRemaining?: number;
 }
 
 const DICE_EMOJIS = ['🎲', '🎯', '🏀', '⚽', '🎰', '🎳'];
@@ -66,13 +77,17 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   recentEmojis, pinnedIndex, onCyclePinned, draft,
   onCreatePoll, onRollDice, onSchedule,
   pendingEffect, onSetEffect, onToggleEffectPicker, showEffectPicker,
+  onMuteChat, onClearHistory, onLeaveChat, onBlockUser, onDeleteChat, onManageChannel, onManageGroup, onReport,
+  slowMode, slowModeRemaining,
 }) => {
   const [inputText, setInputText] = useState('');
   const [showFormatBar, setShowFormatBar] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [newMsgCount, setNewMsgCount] = useState(0);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -84,6 +99,16 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     if (draft && !editMsg) setInputText(draft);
     else if (!editMsg) setInputText('');
   }, [chat.id]);
+
+  // Click outside header menu
+  useEffect(() => {
+    if (!showHeaderMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(e.target as Node)) setShowHeaderMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showHeaderMenu]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -250,9 +275,70 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           <button className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground" onClick={e => { e.stopPropagation(); onToggleSearch(); }}>
             <Search size={18} />
           </button>
-          <button className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground" onClick={e => e.stopPropagation()}>
-            <MoreVertical size={18} />
-          </button>
+          <div className="relative" ref={headerMenuRef}>
+            <button className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground" onClick={e => { e.stopPropagation(); setShowHeaderMenu(!showHeaderMenu); }}>
+              <MoreVertical size={18} />
+            </button>
+            {showHeaderMenu && (
+              <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-xl z-50 min-w-[200px] animate-[contextIn_0.15s_ease-out] py-1">
+                {/* Mute */}
+                <button onClick={() => { onMuteChat(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">
+                  {chat.muted ? <BellOff size={16} /> : <Bell size={16} />}
+                  {chat.muted ? 'Unmute' : 'Mute notifications'}
+                </button>
+                {/* View info */}
+                <button onClick={() => { onHeaderClick(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">
+                  <Search size={16} />
+                  {chat.type === 'channel' ? 'View channel info' : chat.type === 'group' ? 'View group info' : 'View profile'}
+                </button>
+                {/* Manage (admin/owner only) */}
+                {chat.type === 'channel' && (chat.role === 'owner' || chat.role === 'admin') && (
+                  <button onClick={() => { onManageChannel(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">
+                    <Settings size={16} /> Manage Channel
+                  </button>
+                )}
+                {chat.type === 'group' && (chat.role === 'owner' || chat.role === 'admin') && (
+                  <button onClick={() => { onManageGroup(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">
+                    <Settings size={16} /> Manage Group
+                  </button>
+                )}
+                {/* Create poll */}
+                {(chat.type === 'group' || chat.type === 'channel') && (
+                  <button onClick={() => { onCreatePoll(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">
+                    <BarChart3 size={16} /> Create poll
+                  </button>
+                )}
+                <div className="h-px bg-border mx-3 my-1" />
+                {/* Clear history */}
+                <button onClick={() => { onClearHistory(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">
+                  <Trash2 size={16} /> Clear history
+                </button>
+                {/* Block (personal only) */}
+                {chat.type === 'personal' && chat.id !== 'saved' && (
+                  <button onClick={() => { onBlockUser(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">
+                    <Ban size={16} /> Block user
+                  </button>
+                )}
+                {/* Report */}
+                {chat.id !== 'saved' && (
+                  <button onClick={() => { onReport(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-destructive transition-colors">
+                    ⚠️ Report
+                  </button>
+                )}
+                <div className="h-px bg-border mx-3 my-1" />
+                {/* Leave / Delete */}
+                {(chat.type === 'channel' || chat.type === 'group') ? (
+                  <button onClick={() => { onLeaveChat(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-destructive transition-colors">
+                    <LogOut size={16} /> Leave {chat.type === 'channel' ? 'channel' : 'group'}
+                  </button>
+                ) : chat.id !== 'saved' && (
+                  <button onClick={() => { onDeleteChat(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-destructive transition-colors">
+                    <Trash2 size={16} /> Delete chat
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -5,7 +5,7 @@ import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import InfoPanel from './InfoPanel';
 import CommentsPanel from './CommentsPanel';
-import { DeleteDialog, ForwardModal, CreateChannelModal, CreateGroupModal, PollCreationModal, PinConfirmModal, ReportDialog, MuteOptionsModal, SchedulePickerModal, FolderEditorModal, AutoDeleteDialog, EffectPickerMenu } from './Modals';
+import { DeleteDialog, ForwardModal, CreateChannelModal, CreateGroupModal, PollCreationModal, PinConfirmModal, ReportDialog, MuteOptionsModal, SchedulePickerModal, FolderEditorModal, AutoDeleteDialog, EffectPickerMenu, ClearHistoryDialog, EditChannelModal, EditGroupModal, InviteLinksModal, AdminManagementModal } from './Modals';
 
 const DexsterChat: React.FC = () => {
   // Core state
@@ -32,6 +32,11 @@ const DexsterChat: React.FC = () => {
   const [showAutoDeleteDialog, setShowAutoDeleteDialog] = useState(false);
   const [showMuteOptions, setShowMuteOptions] = useState<string | null>(null);
   const [effectPicker, setEffectPicker] = useState(false);
+  const [showClearHistory, setShowClearHistory] = useState(false);
+  const [showEditChannel, setShowEditChannel] = useState(false);
+  const [showEditGroup, setShowEditGroup] = useState(false);
+  const [showInviteLinks, setShowInviteLinks] = useState(false);
+  const [showAdminManagement, setShowAdminManagement] = useState(false);
 
   // Multi-select
   const [selectMode, setSelectMode] = useState(false);
@@ -525,6 +530,68 @@ const DexsterChat: React.FC = () => {
     showToast('Moved to folder');
   }, [showToast]);
 
+  // ========= CLEAR HISTORY =========
+  const clearHistory = useCallback((forAll: boolean) => {
+    setMessages(prev => ({ ...prev, [activeChat]: [] }));
+    setShowClearHistory(false);
+    showToast('History cleared');
+  }, [activeChat, showToast]);
+
+  // ========= UPDATE CHANNEL SETTINGS =========
+  const updateChannelSettings = useCallback((settings: Partial<Chat>) => {
+    setChats(prev => prev.map(c => c.id === activeChat ? { ...c, ...settings } : c));
+    setShowEditChannel(false);
+    showToast('Channel settings updated');
+  }, [activeChat, showToast]);
+
+  // ========= UPDATE GROUP SETTINGS =========
+  const updateGroupSettings = useCallback((settings: Partial<Chat>) => {
+    setChats(prev => prev.map(c => c.id === activeChat ? { ...c, ...settings } : c));
+    setShowEditGroup(false);
+    showToast('Group settings updated');
+  }, [activeChat, showToast]);
+
+  // ========= INVITE LINKS =========
+  const createInviteLink = useCallback((maxUses?: number) => {
+    const link: import('@/types/chat').InviteLink = {
+      id: `inv_${Date.now()}`,
+      link: `t.me/+${Math.random().toString(36).slice(2, 10)}`,
+      uses: 0,
+      maxUses,
+      createdBy: 'me',
+    };
+    setChats(prev => prev.map(c => c.id === activeChat ? { ...c, inviteLinks: [...(c.inviteLinks || []), link] } : c));
+    showToast('Invite link created');
+  }, [activeChat, showToast]);
+
+  const revokeInviteLink = useCallback((linkId: string) => {
+    setChats(prev => prev.map(c => c.id === activeChat ? { ...c, inviteLinks: (c.inviteLinks || []).filter(l => l.id !== linkId) } : c));
+    showToast('Invite link revoked');
+  }, [activeChat, showToast]);
+
+  // ========= ADMIN MANAGEMENT =========
+  const promoteAdmin = useCallback((userId: string, title: string) => {
+    const defaultPerms: import('@/types/chat').AdminPermissions = {
+      changeInfo: false, postMessages: true, editMessages: false, deleteMessages: true,
+      banUsers: true, inviteUsers: true, pinMessages: true, manageVideoChats: false,
+      stayAnonymous: false, addAdmins: false,
+    };
+    setChats(prev => prev.map(c => {
+      if (c.id !== activeChat) return c;
+      const admins = [...(c.admins || [])];
+      const existing = admins.findIndex(a => a.userId === userId);
+      if (existing >= 0) admins[existing] = { ...admins[existing], title };
+      else admins.push({ userId, title, permissions: defaultPerms });
+      return { ...c, admins };
+    }));
+    showToast('Admin updated');
+  }, [activeChat, showToast]);
+
+  const demoteAdmin = useCallback((userId: string) => {
+    setChats(prev => prev.map(c => c.id === activeChat ? { ...c, admins: (c.admins || []).filter(a => a.userId !== userId) } : c));
+    showToast('Admin demoted');
+  }, [activeChat, showToast]);
+
   // ========= AUTO-DELETE =========
   const setAutoDelete = useCallback((chatId: string, timer: number) => {
     setChats(prev => prev.map(c => c.id === chatId ? { ...c, autoDeleteTimer: timer } : c));
@@ -586,7 +653,12 @@ const DexsterChat: React.FC = () => {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (showCommentsFor) setShowCommentsFor(null);
+        if (showClearHistory) setShowClearHistory(false);
+        else if (showEditChannel) setShowEditChannel(false);
+        else if (showEditGroup) setShowEditGroup(false);
+        else if (showInviteLinks) setShowInviteLinks(false);
+        else if (showAdminManagement) setShowAdminManagement(false);
+        else if (showCommentsFor) setShowCommentsFor(null);
         else if (showChannelModal) setShowChannelModal(false);
         else if (showGroupModal) setShowGroupModal(false);
         else if (showPollModal) setShowPollModal(false);
@@ -608,7 +680,7 @@ const DexsterChat: React.FC = () => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [showCommentsFor, showChannelModal, showGroupModal, showPollModal, showScheduleModal, showFolderEditor, showAutoDeleteDialog, showMuteOptions, deleteMsg, forwardMsg, pinConfirmMsg, reportTarget, bulkForwardTarget, selectMode, showChatSearch, showInfoPanel, editMsg, replyTo]);
+  }, [showClearHistory, showEditChannel, showEditGroup, showInviteLinks, showAdminManagement, showCommentsFor, showChannelModal, showGroupModal, showPollModal, showScheduleModal, showFolderEditor, showAutoDeleteDialog, showMuteOptions, deleteMsg, forwardMsg, pinConfirmMsg, reportTarget, bulkForwardTarget, selectMode, showChatSearch, showInfoPanel, editMsg, replyTo]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden font-outfit">
@@ -632,6 +704,7 @@ const DexsterChat: React.FC = () => {
         customFolders={customFolders}
         onMoveToFolder={moveToFolder}
         chatDrafts={chatDrafts}
+        onClearHistory={(id) => { setActiveChat(id); setShowClearHistory(true); }}
       />
 
       {chat && (
@@ -691,6 +764,16 @@ const DexsterChat: React.FC = () => {
           onSetEffect={setPendingEffect}
           onToggleEffectPicker={() => setEffectPicker(!effectPicker)}
           showEffectPicker={effectPicker}
+          // Header menu actions
+          onMuteChat={() => muteChat(activeChat)}
+          onClearHistory={() => setShowClearHistory(true)}
+          onLeaveChat={() => leaveChat(activeChat)}
+          onBlockUser={() => blockUser(activeChat)}
+          onDeleteChat={() => deleteChat(activeChat)}
+          onManageChannel={() => setShowEditChannel(true)}
+          onManageGroup={() => setShowEditGroup(true)}
+          onReport={() => setReportTarget(activeChat)}
+          slowMode={chat?.slowMode}
         />
       )}
 
@@ -707,6 +790,8 @@ const DexsterChat: React.FC = () => {
           onDelete={() => deleteChat(activeChat)}
           onSetAutoDelete={() => setShowAutoDeleteDialog(true)}
           messages={chatMessages}
+          onManageChannel={() => setShowEditChannel(true)}
+          onManageGroup={() => setShowEditGroup(true)}
         />
       )}
 
@@ -730,6 +815,11 @@ const DexsterChat: React.FC = () => {
       {showScheduleModal && <SchedulePickerModal onSchedule={(date) => scheduleMessage(scheduledText, date)} onCancel={() => setShowScheduleModal(false)} />}
       {showFolderEditor && <FolderEditorModal chats={visibleChats} onCreate={createCustomFolder} onClose={() => setShowFolderEditor(false)} />}
       {showAutoDeleteDialog && <AutoDeleteDialog currentTimer={chat?.autoDeleteTimer || 0} onSet={(timer) => setAutoDelete(activeChat, timer)} onCancel={() => setShowAutoDeleteDialog(false)} />}
+      {showClearHistory && <ClearHistoryDialog chatName={chat?.name || ''} chatType={chat?.type || 'personal'} onConfirm={clearHistory} onCancel={() => setShowClearHistory(false)} />}
+      {showEditChannel && chat && <EditChannelModal chat={chat} onSave={updateChannelSettings} onClose={() => setShowEditChannel(false)} onOpenInviteLinks={() => { setShowEditChannel(false); setShowInviteLinks(true); }} onOpenAdmins={() => { setShowEditChannel(false); setShowAdminManagement(true); }} onDeleteChannel={() => { deleteChat(activeChat); setShowEditChannel(false); }} />}
+      {showEditGroup && chat && <EditGroupModal chat={chat} onSave={updateGroupSettings} onClose={() => setShowEditGroup(false)} onOpenInviteLinks={() => { setShowEditGroup(false); setShowInviteLinks(true); }} onOpenAdmins={() => { setShowEditGroup(false); setShowAdminManagement(true); }} onDeleteGroup={() => { deleteChat(activeChat); setShowEditGroup(false); }} />}
+      {showInviteLinks && chat && <InviteLinksModal inviteLinks={chat.inviteLinks || []} onCreate={() => createInviteLink()} onRevoke={revokeInviteLink} onClose={() => setShowInviteLinks(false)} />}
+      {showAdminManagement && chat && <AdminManagementModal chat={chat} users={Object.values(users)} onPromote={promoteAdmin} onDemote={demoteAdmin} onClose={() => setShowAdminManagement(false)} />}
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-card border border-border text-sm text-foreground shadow-lg animate-[toastIn_0.2s_ease-out] z-50">

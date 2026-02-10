@@ -1,6 +1,6 @@
 import React from 'react';
 import { Chat, Message } from '@/types/chat';
-import { X, Bell, BellOff, Ban, AlertTriangle, Trash2, Clock, Link, LogOut } from 'lucide-react';
+import { X, Bell, BellOff, Ban, AlertTriangle, Trash2, Clock, Link, LogOut, Settings, Edit3, Shield, UserPlus, Copy } from 'lucide-react';
 
 interface InfoPanelProps {
   chat: Chat;
@@ -14,9 +14,11 @@ interface InfoPanelProps {
   onDelete: () => void;
   onSetAutoDelete: () => void;
   messages: Message[];
+  onManageChannel?: () => void;
+  onManageGroup?: () => void;
 }
 
-const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBlock, onUnblock, onReport, onLeave, onDelete, onSetAutoDelete, messages }) => {
+const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBlock, onUnblock, onReport, onLeave, onDelete, onSetAutoDelete, messages, onManageChannel, onManageGroup }) => {
   if (!open) return null;
 
   const isChannel = chat.type === 'channel';
@@ -37,7 +39,20 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBl
         <span className="text-sm font-semibold text-foreground">
           {isSaved ? 'Saved Messages' : isChannel ? 'Channel Info' : isGroup ? 'Group Info' : 'Chat Info'}
         </span>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
+        <div className="flex items-center gap-1">
+          {/* Edit/Manage button for admins/owners */}
+          {isChannel && (chat.role === 'owner' || chat.role === 'admin') && onManageChannel && (
+            <button onClick={onManageChannel} className="p-1.5 rounded-lg hover:bg-dex-hover text-muted-foreground" title="Manage Channel">
+              <Edit3 size={16} />
+            </button>
+          )}
+          {isGroup && (chat.role === 'owner' || chat.role === 'admin') && onManageGroup && (
+            <button onClick={onManageGroup} className="p-1.5 rounded-lg hover:bg-dex-hover text-muted-foreground" title="Manage Group">
+              <Edit3 size={16} />
+            </button>
+          )}
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
+        </div>
       </div>
 
       <div className="flex flex-col items-center py-6 px-4">
