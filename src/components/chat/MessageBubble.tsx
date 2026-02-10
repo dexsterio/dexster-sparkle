@@ -304,6 +304,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <PollMessage pollData={message.pollData} onVote={(idx) => onVotePoll(message.id, idx)} isOwn={isOwn && !isChannel} />
         )}
 
+        {/* GIF content */}
+        {message.type === 'gif' && message.gifUrl && (
+          <div className="rounded-lg overflow-hidden max-w-[280px]">
+            <img src={message.gifUrl} alt="GIF" className="w-full h-auto rounded-lg" loading="lazy" />
+          </div>
+        )}
+
         {/* Text content */}
         {message.type === 'message' && (
           <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">

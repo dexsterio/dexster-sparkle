@@ -61,7 +61,7 @@ export interface Message {
   };
   pinned?: boolean;
   reactions?: Reaction[];
-  type: 'message' | 'service' | 'poll' | 'dice';
+  type: 'message' | 'service' | 'poll' | 'dice' | 'gif';
   serviceText?: string;
   views?: number;
   comments?: number;
@@ -76,6 +76,7 @@ export interface Message {
   translated?: string;
   bookmarked?: boolean;
   autoDeleteAt?: number; // timestamp
+  gifUrl?: string;
 }
 
 export interface AdminPermissions {
