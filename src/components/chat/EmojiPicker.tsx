@@ -42,7 +42,7 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({ onSelect, onClose, recentEmoj
     : Object.keys(EMOJI_DATA);
 
   return (
-    <div className="absolute bottom-full left-0 mb-2 w-[340px] bg-popover/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl animate-[contextIn_0.15s_ease-out] z-30 overflow-hidden">
+    <div className="absolute bottom-full left-0 mb-2 w-[340px] bg-popover border border-border rounded-2xl shadow-xl animate-[contextIn_0.15s_ease-out] z-30 overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
         <Search size={14} className="text-muted-foreground" />
@@ -53,7 +53,7 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({ onSelect, onClose, recentEmoj
           placeholder="Search emoji..."
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
         />
-        <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground">
+        <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground transition-colors">
           <X size={14} />
         </button>
       </div>

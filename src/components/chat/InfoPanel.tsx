@@ -61,7 +61,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBl
           </div>
         )}
         {chat.username && (
-          <div className="flex items-center gap-3 py-2.5 text-sm cursor-pointer hover:bg-dex-hover rounded-lg px-1 -mx-1"
+          <div className="flex items-center gap-3 py-2.5 text-sm cursor-pointer hover:bg-dex-hover rounded-lg px-1 -mx-1 transition-colors"
             onClick={() => { navigator.clipboard.writeText(`t.me/${chat.username?.replace('@', '')}`); }}>
             <span className="text-base">@</span>
             <div>
@@ -104,7 +104,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBl
       {!isSaved && (
         <>
           <div className="px-4">
-            <button onClick={onSetAutoDelete} className="flex items-center justify-between w-full py-2.5 text-sm text-foreground hover:bg-dex-hover rounded-lg px-2 -mx-2">
+            <button onClick={onSetAutoDelete} className="flex items-center justify-between w-full py-2.5 text-sm text-foreground hover:bg-dex-hover rounded-lg px-2 -mx-2 transition-colors">
               <div className="flex items-center gap-3">
                 <Clock size={16} />
                 <span>Auto-delete messages</span>
@@ -122,7 +122,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBl
           <div className="px-4 mb-3">
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📌 Pinned Messages ({pinnedMessages.length})</h4>
             {pinnedMessages.map(m => (
-              <div key={m.id} className="py-2 text-sm text-foreground border-l-2 border-primary/30 pl-2 mb-1 cursor-pointer hover:bg-dex-hover rounded-r">
+              <div key={m.id} className="py-2 text-sm text-foreground border-l-2 border-primary/30 pl-2 mb-1 cursor-pointer hover:bg-dex-hover rounded-r transition-colors">
                 <p className="truncate text-xs">{m.text.slice(0, 80)}</p>
                 <span className="text-[10px] text-muted-foreground">{m.senderName} · {m.time}</span>
               </div>
@@ -137,12 +137,12 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBl
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Shared Media</h4>
         <div className="grid grid-cols-3 gap-1">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="aspect-square rounded-lg bg-muted/50 flex items-center justify-center text-muted-foreground/30 text-2xl">🖼</div>
+            <div key={i} className="aspect-square rounded-lg bg-muted/30 border border-border/30 flex items-center justify-center text-muted-foreground/20 text-2xl">🖼</div>
           ))}
         </div>
-        <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+        <div className="mt-3 space-y-0.5 text-sm text-muted-foreground">
           {[`📷 Photos (${Math.floor(mediaCount * 0.6)})`, `📹 Videos (${Math.floor(mediaCount * 0.15)})`, `📄 Files (${Math.floor(mediaCount * 0.15)})`, `🔗 Links (${Math.floor(mediaCount * 0.1)})`].map(s => (
-            <div key={s} className="py-1.5 hover:text-foreground cursor-pointer transition-colors">{s}</div>
+            <div key={s} className="py-1.5 hover:text-foreground cursor-pointer transition-colors rounded-lg px-1 hover:bg-dex-hover">{s}</div>
           ))}
         </div>
       </div>
@@ -154,7 +154,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBl
         <>
           <div className="px-4 mb-3">
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Groups in Common (1)</h4>
-            <div className="flex items-center gap-2 py-2 hover:bg-dex-hover rounded-lg px-1 cursor-pointer">
+            <div className="flex items-center gap-2 py-2 hover:bg-dex-hover rounded-lg px-1 cursor-pointer transition-colors">
               <div className="w-8 h-8 rounded-full bg-[hsl(200,70%,50%)] flex items-center justify-center text-xs font-semibold text-white">DH</div>
               <span className="text-sm text-foreground">DevOps Hub</span>
             </div>
@@ -168,11 +168,11 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBl
         <div className="px-4 mb-3">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Members ({chat.members.length})</h4>
           {chat.members.map((m, i) => (
-            <div key={m.id} className="flex items-center gap-2 py-2">
+            <div key={m.id} className="flex items-center gap-2 py-2 px-1 rounded-lg hover:bg-dex-hover cursor-pointer transition-colors">
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white" style={{ background: `hsl(${m.color})` }}>{m.avatar}</div>
               <span className="text-sm text-foreground flex-1">{m.name}</span>
               {i === 0 && <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">owner</span>}
-              {m.online && <span className="w-2 h-2 rounded-full bg-dex-online" />}
+              {m.online && <span className="w-2.5 h-2.5 rounded-full bg-dex-online" />}
             </div>
           ))}
         </div>

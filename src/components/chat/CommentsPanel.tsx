@@ -32,10 +32,10 @@ const CommentsPanel: React.FC<CommentsPanelProps> = ({ comments, postPreview, on
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-background animate-[slideUp_0.3s_ease-out]">
+    <div className="absolute inset-0 z-40 flex flex-col bg-background animate-[slideUp_0.3s_ease-out]">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-dex-hover text-muted-foreground">
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-dex-hover text-muted-foreground transition-colors">
           <ArrowLeft size={18} />
         </button>
         <div className="flex-1 min-w-0">
@@ -84,7 +84,7 @@ const CommentsPanel: React.FC<CommentsPanelProps> = ({ comments, postPreview, on
             <div className="text-[11px] font-semibold text-primary">Reply to {replyTo.senderName}</div>
             <div className="text-xs text-muted-foreground truncate">{replyTo.text}</div>
           </div>
-          <button onClick={() => setReplyTo(null)} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
+          <button onClick={() => setReplyTo(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">✕</button>
         </div>
       )}
 
@@ -96,11 +96,11 @@ const CommentsPanel: React.FC<CommentsPanelProps> = ({ comments, postPreview, on
           onChange={e => setText(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSend()}
           placeholder="Write a comment..."
-          className="flex-1 px-4 py-2 rounded-full bg-muted text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+          className="flex-1 px-4 py-2 rounded-full bg-muted border border-border/50 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
         />
         <button
           onClick={handleSend}
-          className={`p-2.5 rounded-full transition-all ${text.trim() ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+          className={`p-2.5 rounded-full transition-all duration-200 ${text.trim() ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
         >
           <Send size={16} />
         </button>
