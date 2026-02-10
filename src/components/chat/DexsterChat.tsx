@@ -5,7 +5,7 @@ import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import InfoPanel from './InfoPanel';
 import CommentsPanel from './CommentsPanel';
-import { DeleteDialog, ForwardModal, CreateChannelModal, CreateGroupModal, PollCreationModal, PinConfirmModal, ReportDialog, MuteOptionsModal, SchedulePickerModal, FolderEditorModal, AutoDeleteDialog, EffectPickerMenu, ClearHistoryDialog, EditChannelModal, EditGroupModal, InviteLinksModal, AdminManagementModal } from './Modals';
+import { DeleteDialog, ForwardModal, CreateChannelModal, CreateGroupModal, PollCreationModal, PinConfirmModal, ReportDialog, MuteOptionsModal, SchedulePickerModal, FolderEditorModal, AutoDeleteDialog, EffectPickerMenu, ClearHistoryDialog, EditChannelModal, EditGroupModal, InviteLinksModal, AdminManagementModal, LeaveConfirmDialog } from './Modals';
 
 const DexsterChat: React.FC = () => {
   // Core state
@@ -37,6 +37,7 @@ const DexsterChat: React.FC = () => {
   const [showEditGroup, setShowEditGroup] = useState(false);
   const [showInviteLinks, setShowInviteLinks] = useState(false);
   const [showAdminManagement, setShowAdminManagement] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // Multi-select
   const [selectMode, setSelectMode] = useState(false);
@@ -533,6 +534,9 @@ const DexsterChat: React.FC = () => {
   // ========= CLEAR HISTORY =========
   const clearHistory = useCallback((forAll: boolean) => {
     setMessages(prev => ({ ...prev, [activeChat]: [] }));
+    setChats(prev => prev.map(c => c.id === activeChat
+      ? { ...c, lastMessage: '', lastTime: '', lastMessageSender: undefined }
+      : c));
     setShowClearHistory(false);
     showToast('History cleared');
   }, [activeChat, showToast]);
@@ -622,6 +626,14 @@ const DexsterChat: React.FC = () => {
       id, name, type: 'group', avatar: name.slice(0, 2).toUpperCase(), avatarColor: `${Math.floor(Math.random() * 360)} 60% 50%`,
       muted: false, pinned: false, unread: 0, lastMessage: 'Group created', lastTime: 'now',
       memberCount: memberIds.length + 1, members: members as any, bio: description, role: 'owner',
+      admins: [{
+        userId: 'me', title: 'Creator',
+        permissions: { changeInfo: true, postMessages: true, editMessages: true, deleteMessages: true, banUsers: true, inviteUsers: true, pinMessages: true, manageVideoChats: true, stayAnonymous: false, addAdmins: true }
+      }],
+      inviteLinks: [],
+      permissions: { sendMessages: true, sendMedia: true, sendStickers: true, sendPolls: true, addMembers: true, pinMessages: true, changeInfo: true },
+      slowMode: 0,
+      chatHistoryForNewMembers: true,
     };
     setChats(prev => [...prev, newChat]);
     setMessages(prev => ({
@@ -639,6 +651,15 @@ const DexsterChat: React.FC = () => {
       id, name, type: 'channel', avatar: name.slice(0, 2).toUpperCase(), avatarColor: `${Math.floor(Math.random() * 360)} 65% 55%`,
       muted: false, pinned: false, unread: 0, lastMessage: 'Channel created', lastTime: 'now',
       isPublic, description, subscriberCount: 1, commentsEnabled, reactionsEnabled,
+      role: 'owner',
+      admins: [{
+        userId: 'me', title: 'Owner',
+        permissions: { changeInfo: true, postMessages: true, editMessages: true, deleteMessages: true, banUsers: true, inviteUsers: true, pinMessages: true, manageVideoChats: true, stayAnonymous: false, addAdmins: true }
+      }],
+      inviteLinks: [],
+      signMessages: false,
+      autoTranslate: false,
+      directMessages: true,
     };
     setChats(prev => [...prev, newChat]);
     setMessages(prev => ({
@@ -767,7 +788,7 @@ const DexsterChat: React.FC = () => {
           // Header menu actions
           onMuteChat={() => muteChat(activeChat)}
           onClearHistory={() => setShowClearHistory(true)}
-          onLeaveChat={() => leaveChat(activeChat)}
+          onLeaveChat={() => setShowLeaveConfirm(true)}
           onBlockUser={() => blockUser(activeChat)}
           onDeleteChat={() => deleteChat(activeChat)}
           onManageChannel={() => setShowEditChannel(true)}
@@ -786,7 +807,7 @@ const DexsterChat: React.FC = () => {
           onBlock={() => blockUser(activeChat)}
           onUnblock={() => unblockUser(activeChat)}
           onReport={() => setReportTarget(activeChat)}
-          onLeave={() => leaveChat(activeChat)}
+          onLeave={() => setShowLeaveConfirm(true)}
           onDelete={() => deleteChat(activeChat)}
           onSetAutoDelete={() => setShowAutoDeleteDialog(true)}
           messages={chatMessages}
@@ -820,6 +841,7 @@ const DexsterChat: React.FC = () => {
       {showEditGroup && chat && <EditGroupModal chat={chat} onSave={updateGroupSettings} onClose={() => setShowEditGroup(false)} onOpenInviteLinks={() => { setShowEditGroup(false); setShowInviteLinks(true); }} onOpenAdmins={() => { setShowEditGroup(false); setShowAdminManagement(true); }} onDeleteGroup={() => { deleteChat(activeChat); setShowEditGroup(false); }} />}
       {showInviteLinks && chat && <InviteLinksModal inviteLinks={chat.inviteLinks || []} onCreate={() => createInviteLink()} onRevoke={revokeInviteLink} onClose={() => setShowInviteLinks(false)} />}
       {showAdminManagement && chat && <AdminManagementModal chat={chat} users={Object.values(users)} onPromote={promoteAdmin} onDemote={demoteAdmin} onClose={() => setShowAdminManagement(false)} />}
+      {showLeaveConfirm && chat && <LeaveConfirmDialog chatName={chat.name} chatType={chat.type} onConfirm={() => { leaveChat(activeChat); setShowLeaveConfirm(false); }} onCancel={() => setShowLeaveConfirm(false)} />}
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-card border border-border text-sm text-foreground shadow-lg animate-[toastIn_0.2s_ease-out] z-50">
