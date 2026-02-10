@@ -78,6 +78,44 @@ export interface Message {
   autoDeleteAt?: number; // timestamp
 }
 
+export interface AdminPermissions {
+  changeInfo: boolean;
+  postMessages: boolean;
+  editMessages: boolean;
+  deleteMessages: boolean;
+  banUsers: boolean;
+  inviteUsers: boolean;
+  pinMessages: boolean;
+  manageVideoChats: boolean;
+  stayAnonymous: boolean;
+  addAdmins: boolean;
+}
+
+export interface AdminEntry {
+  userId: string;
+  title?: string;
+  permissions: AdminPermissions;
+}
+
+export interface InviteLink {
+  id: string;
+  link: string;
+  uses: number;
+  maxUses?: number;
+  expiresAt?: string;
+  createdBy: string;
+}
+
+export interface GroupPermissions {
+  sendMessages: boolean;
+  sendMedia: boolean;
+  sendStickers: boolean;
+  sendPolls: boolean;
+  addMembers: boolean;
+  pinMessages: boolean;
+  changeInfo: boolean;
+}
+
 export interface Chat {
   id: string;
   name: string;
@@ -103,15 +141,30 @@ export interface Chat {
   phone?: string;
   username?: string;
   bio?: string;
-  // New fields
+  // Organization
   archived?: boolean;
   blocked?: boolean;
-  autoDeleteTimer?: number; // seconds: 86400=1day, 604800=1week, 2592000=1month
+  autoDeleteTimer?: number;
   folderId?: string;
   markedUnread?: boolean;
   draft?: string;
-  muteUntil?: number; // timestamp, 0=forever
+  muteUntil?: number;
   role?: 'owner' | 'admin' | 'member';
+  // Channel/Group management
+  signMessages?: boolean;
+  autoTranslate?: boolean;
+  accentColor?: string;
+  directMessages?: boolean;
+  discussionGroup?: string;
+  inviteLinks?: InviteLink[];
+  admins?: AdminEntry[];
+  removedUsers?: string[];
+  bannedUsers?: string[];
+  recentActions?: { action: string; userId: string; timestamp: string }[];
+  // Group-specific
+  permissions?: GroupPermissions;
+  slowMode?: number;
+  chatHistoryForNewMembers?: boolean;
 }
 
 export interface Comment {

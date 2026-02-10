@@ -168,17 +168,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isGroup = chat.type === 'group';
   const isOwn = message.isOwn;
 
-  // ── Contrast-aware color tokens ──
-  const metaColor = isOwn && !isChannel ? 'text-white/55' : 'text-muted-foreground';
-  const replyBg = isOwn && !isChannel ? 'bg-white/10' : 'bg-primary/[0.08]';
-  const replyBorder = isOwn && !isChannel ? 'border-white/40' : 'border-primary';
-  const replyName = isOwn && !isChannel ? 'text-white/90' : 'text-primary';
-  const replyText = isOwn && !isChannel ? 'text-white/60' : 'text-muted-foreground';
-  const fwdColor = isOwn && !isChannel ? 'text-white/70' : 'text-primary/70';
-  const fwdBorder = isOwn && !isChannel ? 'border-white/30' : 'border-primary/30';
-  const pinColor = isOwn && !isChannel ? 'text-white/70' : 'text-primary';
-  const indicatorColor = isOwn && !isChannel ? 'text-white/60' : 'text-primary/60';
-  const channelFooterColor = isOwn && !isChannel ? 'text-white/55' : 'text-muted-foreground';
+  // ── Contrast-aware color tokens (HIGH CONTRAST for own bubbles) ──
+  const ownBubble = isOwn && !isChannel;
+  const metaColor = ownBubble ? 'text-white/60' : 'text-muted-foreground';
+  const replyBg = ownBubble ? 'bg-white/[0.18]' : 'bg-primary/[0.08]';
+  const replyBorder = ownBubble ? 'border-white/60' : 'border-primary';
+  const replyName = ownBubble ? 'text-white font-bold' : 'text-primary';
+  const replyText = ownBubble ? 'text-white/80' : 'text-muted-foreground';
+  const fwdColor = ownBubble ? 'text-white/80' : 'text-primary/70';
+  const fwdBorder = ownBubble ? 'border-white/50' : 'border-primary/30';
+  const pinColor = ownBubble ? 'text-white/80' : 'text-primary';
+  const indicatorColor = ownBubble ? 'text-white/65' : 'text-primary/60';
+  const channelFooterColor = ownBubble ? 'text-white/60' : 'text-muted-foreground';
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
