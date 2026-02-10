@@ -1,209 +1,317 @@
 
-# Comprehensive UI Polish & Fix Plan for Dexster Chat
+
+# Massive Feature Expansion & UI Fix Plan for Dexster Chat
 
 ## Overview
-Systematic fix of all identified UI problems across every component, covering color contrast, spacing, layout, animations, interactivity, and visual consistency to bring Dexster Chat to production quality.
+This plan addresses two major areas: (1) fixing the persistent reply contrast bug and other UI issues, and (2) adding comprehensive channel/group management, a proper header menu system, and many missing functional features to bring Dexster to enterprise-grade quality.
 
 ---
 
-## Critical Issues (High Impact)
+## Part 1: Critical UI Fixes
 
-### 1. Reply Preview Inside Own Message Bubble — Invisible Text
-**Problem**: When you reply to a message, the reply preview inside your own purple gradient bubble uses `bg-primary/[0.08]` and `text-primary` for the sender name — both blend into the purple gradient background, making content invisible.
-**Fix in MessageBubble.tsx**: Use white-based colors for reply previews when `isOwn` is true:
-- Reply sender name: `text-white/90` instead of `text-primary`
-- Reply text: `text-white/60` instead of `text-muted-foreground`
-- Reply background: `bg-white/10` instead of `bg-primary/[0.08]`
-- Reply left border: `border-white/40` instead of `border-primary`
+### 1.1 Reply Contrast Fix (Still Broken)
+The reply preview inside own purple bubbles still shows near-invisible text. The current code uses `text-white/90` and `text-white/60` which should work, but the `bg-white/10` background blends with the purple gradient making the entire reply block hard to distinguish.
 
-### 2. Forwarded Header Invisible in Own Bubbles
-**Problem**: Same issue — forwarded header uses `text-primary/70` and `border-primary/30` which disappears on own gradient bubbles.
-**Fix**: When `isOwn`, use `text-white/70` and `border-white/30`.
+**Fix**: Increase contrast significantly:
+- Reply background: `bg-white/15` (was `/10`)
+- Reply sender name: `text-white font-bold` (was `text-white/90`)  
+- Reply text: `text-white/75` (was `text-white/60`)
+- Reply left border: `border-white/60` (was `border-white/40`)
 
-### 3. Pinned Indicator Invisible in Own Bubbles
-**Problem**: `text-primary` pin indicator disappears on purple gradient.
-**Fix**: Use `text-white/70` when `isOwn`.
-
-### 4. Spoiler Text Contrast
-**Problem**: Spoiler blur uses `text-transparent` with a light textShadow — works on dark bubbles but may be inconsistent on own gradient.
-**Fix**: Ensure spoiler background contrast works on both bubble types.
-
-### 5. Hover Actions Bar Positioning — Overlapping/Clipping
-**Problem**: Hover actions bar uses `translate-x-full` positioning which can go outside viewport on messages near edges, and overlaps adjacent messages.
-**Fix**: Add bounds checking. For own messages at right edge, show actions to the left inside the bubble area. Add proper z-index layering.
-
-### 6. Reaction Picker Positioning
-**Problem**: Reaction picker can clip outside viewport on messages near top of chat. Uses `-top-12` absolute which may overlap with header.
-**Fix**: Add viewport bounds detection, flip to bottom if near top.
+### 1.2 Other Bubble Contrast Tweaks
+- Forwarded header border: `border-white/50` (was `/30`)
+- Pin indicator: `text-white/80` (was `/70`)
+- Meta timestamp: `text-white/60` (was `/55`)
 
 ---
 
-## Moderate Issues (Visual Polish)
+## Part 2: Channel Header Menu (Three-Dot Menu)
 
-### 7. Message Bubble Max Width & Alignment
-**Problem**: Some messages feel cramped, and channel posts need better visual separation from regular messages.
-**Fix**: Ensure consistent padding, channel posts get `py-4` instead of `py-2`, add subtle bottom margin between messages.
+Currently the MoreVertical button in the chat header does nothing. Based on the Telegram reference (image-1), this needs a full dropdown menu.
 
-### 8. Code Block Styling
-**Problem**: Code blocks inside own bubbles use `bg-black/40` which looks okay but inline `code` uses `bg-black/30` — on the other person's bubble (which is already dark), contrast is poor.
-**Fix**: Different code background for own vs other: own = `bg-black/30`, other = `bg-white/10`.
+### 2.1 Header Menu Dropdown (ChatArea.tsx)
+Add a dropdown on the three-dot button with context-aware items:
 
-### 9. Timestamp & Meta Positioning
-**Problem**: The timestamp line can wrap oddly on short messages. The "edited" label + time + checkmarks should be on a single line and properly right-aligned.
-**Fix**: Use `flex-shrink-0` and `whitespace-nowrap` on the meta line.
+**For Channels (owner/admin):**
+- Mute notifications (with submenu arrow)
+- View channel info
+- Manage Channel (opens Edit Channel modal)
+- Create poll
+- Clear history
+- Leave channel (red)
 
-### 10. Sidebar Active Chat Highlight
-**Problem**: Active chat uses `bg-primary/[0.18]` which is very subtle. Needs stronger visual distinction.
-**Fix**: Use `bg-primary/[0.15]` with a left border accent: `border-l-3 border-primary`.
+**For Channels (subscriber):**
+- Mute notifications
+- View channel info
+- Report
+- Leave channel (red)
 
-### 11. Sidebar Pinned Section Separator
-**Problem**: Pin separator (`h-px bg-border mx-4`) is barely visible.
-**Fix**: Make it slightly more visible with a bit more contrast.
+**For Groups (admin):**
+- Mute notifications
+- View group info
+- Manage Group (opens Edit Group modal)
+- Create poll
+- Clear history
+- Leave group (red)
 
-### 12. Sidebar Unread Badge
-**Problem**: When `markedUnread` and `unread === 0`, an empty badge renders (empty circle).
-**Fix**: Show a small dot indicator instead of empty badge.
+**For Groups (member):**
+- Mute notifications
+- View group info
+- Create poll
+- Leave group (red)
 
-### 13. Chat List Item — Last Message Truncation
-**Problem**: Last message can be too long and pushes the unread badge out of view.
-**Fix**: Add `max-w-[200px]` to the message preview text.
+**For Personal chats:**
+- Mute notifications
+- View profile
+- Clear history
+- Block user
+- Delete chat (red)
 
-### 14. Date Separator Sticky Behavior
-**Problem**: Date separators have `sticky top-0` but their `bg-dex-surface/80` may not fully cover content scrolling behind.
-**Fix**: Add `backdrop-blur-sm` and ensure proper z-index stacking.
-
-### 15. Unread Messages Separator
-**Problem**: The "Unread Messages" separator line styling is okay but could be more prominent.
-**Fix**: Add `py-1` padding and slightly bolder text.
-
-### 16. Pin Banner — Visual Hierarchy
-**Problem**: Pin banner blends too much with the header area.
-**Fix**: Add a slightly stronger background tint and ensure text truncation works properly.
-
-### 17. Context Menu — Position Clamping
-**Problem**: Context menu clamps to `window.innerHeight - 300` which may still clip for menus with many items.
-**Fix**: Dynamically calculate menu height after render and adjust position.
-
-### 18. Context Menu — Missing Quick Reactions on Sidebar
-**Problem**: Sidebar context menu doesn't have the reaction row (correct), but the divider styling between items is inconsistent.
-**Fix**: Normalize divider margins across all context menus.
-
-### 19. Emoji Picker — Position & Overflow
-**Problem**: Emoji picker opens `absolute bottom-full left-0` inside the input area container, which can clip at the left edge.
-**Fix**: Position relative to the emoji button, ensure it stays within viewport.
-
-### 20. Format Toolbar Buttons
-**Problem**: Format toolbar buttons are plain and lack active state feedback.
-**Fix**: Add active/pressed state with `bg-primary/20` and transition.
+### 2.2 Implementation
+- New state `showHeaderMenu` in ChatArea
+- Click-outside-to-close behavior
+- Each item calls the appropriate handler passed as props from DexsterChat
 
 ---
 
-## Minor Issues (Fine-tuning)
+## Part 3: Edit Channel / Manage Channel Modal
 
-### 21. Textarea Auto-expand
-**Problem**: The minHeight reset to 20px on every keystroke can cause flickering.
-**Fix**: Only reset when content actually changes height.
+Based on reference image-2, a comprehensive channel settings modal.
 
-### 22. Send Button Animation
-**Problem**: The send button scale from `0.95 to 1` transition is abrupt.
-**Fix**: Add `duration-200` and a smoother ease.
+### 3.1 EditChannelModal (new export in Modals.tsx)
 
-### 23. Scroll-to-Bottom FAB
-**Problem**: FAB appears/disappears without smooth transition.
-**Fix**: Use opacity + translateY transition instead of sudden mount/unmount.
+**Sections:**
+1. **Header**: Channel avatar (camera icon placeholder) + Channel name input + emoji button
+2. **Description** (optional textarea)
+3. **Settings section**:
+   - Channel type: Public / Private (toggle, shows current state)
+   - Discussion: Add a group / linked group name
+   - Direct Messages: On/Off toggle
+   - Appearance: accent color picker
+   - Auto-translate messages: On/Off toggle
+   - Sign messages: On/Off toggle with explanation text
+4. **Divider**
+5. **Management section**:
+   - Reactions: All / Selected / None
+   - Invite links: count display, clickable
+   - Administrators: count display, clickable
+   - Subscribers: count display, clickable
+   - Removed users: clickable
+   - Recent actions: clickable
+6. **Delete channel** (red, bottom)
+7. **Footer**: Cancel / Save buttons
 
-### 24. Service Messages
-**Problem**: Service messages are functional but could use slightly more vertical spacing.
-**Fix**: Change `my-2` to `my-3` and add `py-1.5`.
+### 3.2 Data Model Updates (types/chat.ts)
 
-### 25. Typing Indicator in Header
-**Problem**: Typing dots animation works but the dots are very small (1px width).
-**Fix**: Increase to `w-1.5 h-1.5` for better visibility.
-
-### 26. Online Dot Size Consistency
-**Problem**: Sidebar online dot is 12px (w-3 h-3) but header online dot is 10px (w-2.5 h-2.5). Inconsistent.
-**Fix**: Standardize to w-3 h-3 everywhere.
-
-### 27. Avatar Text Sizing
-**Problem**: Saved Messages bookmark emoji avatar styling is inconsistent — nested spans create layout issues.
-**Fix**: Clean up the Saved Messages avatar rendering.
-
-### 28. Info Panel — Shared Media Placeholder
-**Problem**: The 🖼 placeholder grid looks unpolished.
-**Fix**: Use a cleaner placeholder with rounded-lg and subtle border.
-
-### 29. Info Panel — Member List Spacing
-**Problem**: Member list items in group info lack consistent padding.
-**Fix**: Add `px-1 rounded-lg hover:bg-dex-hover` cursor-pointer styling.
-
-### 30. Poll Message — Option Button States
-**Problem**: Voted options lack clear visual feedback after click.
-**Fix**: Add a smooth transition on the percentage bar fill and a subtle bounce.
-
-### 31. Comments Panel — Full Screen Issue
-**Problem**: Comments panel uses `fixed inset-0` covering the entire screen including sidebar.
-**Fix**: Change to only cover the chat area (position relative to parent).
-
-### 32. Modal Backdrop Consistency
-**Problem**: All modals use `bg-black/60` but some should be slightly darker for better focus.
-**Fix**: Standardize to `bg-black/50 backdrop-blur-sm`.
-
-### 33. Input Area Border
-**Problem**: The pill input `bg-muted` blends with the overall dark theme.
-**Fix**: Add a subtle `border border-border/50` to the pill container.
-
-### 34. Attach Menu — Dice Section
-**Problem**: The "Roll Dice" section in attach menu feels like an afterthought.
-**Fix**: Better visual separation and slightly larger emoji buttons.
-
-### 35. Effect Indicator Position
-**Problem**: The "Effect: confetti" indicator uses `absolute -top-8 right-16` which can overlap with other elements.
-**Fix**: Move to inline indicator near the send button.
-
-### 36. Folder Tab Unread Badge Contrast
-**Problem**: Active folder tab unread badge uses `bg-primary-foreground/20` which is barely visible on the active primary background.
-**Fix**: Use `bg-white/30` for active tab badges.
-
-### 37. Chat Header — Action Buttons Spacing
-**Problem**: Search and menu buttons in header are slightly too close together.
-**Fix**: Add `gap-2` instead of `gap-1`.
-
-### 38. Keyboard Shortcut Labels in Context Menu
-**Problem**: Shortcuts like "Ctrl+R" are very faded (`opacity-0.4`).
-**Fix**: Increase to `opacity-0.5` and use a slightly lighter color.
-
-### 39. New Chat Dropdown — Z-index
-**Problem**: New chat dropdown may appear behind other elements.
-**Fix**: Ensure `z-50` is applied and add click-outside-to-close behavior.
-
-### 40. Select Mode Toolbar — Button Consistency
-**Problem**: Select mode toolbar buttons have different sizes and styles.
-**Fix**: Standardize all buttons to same height, padding, and font weight.
-
----
-
-## Technical Implementation
-
-### Files to modify:
-1. **MessageBubble.tsx** — Fixes 1-6, 8-9 (contrast-aware colors for own vs other bubbles)
-2. **ChatArea.tsx** — Fixes 7, 14-16, 19-23, 31, 33-35, 37, 40
-3. **Sidebar.tsx** — Fixes 10-13, 36, 39
-4. **ContextMenu.tsx** — Fixes 17-18, 38
-5. **InfoPanel.tsx** — Fixes 28-29
-6. **PollMessage.tsx** — Fix 30
-7. **CommentsPanel.tsx** — Fix 31
-8. **EmojiPicker.tsx** — Fix 19
-9. **Modals.tsx** — Fix 32
-10. **index.css** — Fix 23, add smooth transition utilities
-
-### Core Pattern: Own-Bubble-Aware Styling
-The primary fix pattern is adding conditional classes based on `isOwn`:
+Add to Chat interface:
 ```
-const metaColor = isOwn ? 'text-white/55' : 'text-muted-foreground';
-const replyBg = isOwn ? 'bg-white/10' : 'bg-primary/[0.08]';
-const replyBorder = isOwn ? 'border-white/40' : 'border-primary';
-const replyName = isOwn ? 'text-white/90' : 'text-primary';
-const replyText = isOwn ? 'text-white/60' : 'text-muted-foreground';
+signMessages?: boolean;
+autoTranslate?: boolean;
+accentColor?: string;
+directMessages?: boolean;
+discussionGroup?: string;
+inviteLinks?: { id: string; link: string; uses: number; maxUses?: number; expiresAt?: string }[];
+admins?: { userId: string; title?: string; permissions: string[] }[];
+removedUsers?: string[];
+recentActions?: { action: string; userId: string; timestamp: string }[];
 ```
 
-This pattern needs to be applied consistently to ALL inline elements within message bubbles: reply previews, forwarded headers, pin indicators, code blocks, hashtags, mentions, URLs, spoilers, scheduled/silent indicators, translated labels, and channel post footers.
+### 3.3 Logic in DexsterChat.tsx
+- `updateChannelSettings(chatId, settings)` handler
+- `deleteChannel(chatId)` handler with confirmation
+- Pass handlers to the modal
+
+---
+
+## Part 4: Edit Group / Manage Group Modal
+
+### 4.1 EditGroupModal (new export in Modals.tsx)
+
+Similar to channel but with group-specific options:
+1. Group avatar + name + description
+2. Group type: Public / Private
+3. Chat history for new members: Visible / Hidden
+4. Permissions section (what members can do):
+   - Send messages
+   - Send media
+   - Send stickers/GIFs
+   - Send polls
+   - Add members
+   - Pin messages
+   - Change group info
+5. Slow mode: Off / 10s / 30s / 1m / 5m / 15m / 1h
+6. Admin list with roles
+7. Member list with search + kick/promote
+8. Banned users
+9. Invite links management
+10. Delete group (red)
+
+### 4.2 Data Model Updates
+Add to Chat interface:
+```
+permissions?: {
+  sendMessages?: boolean;
+  sendMedia?: boolean;
+  sendStickers?: boolean;
+  sendPolls?: boolean;
+  addMembers?: boolean;
+  pinMessages?: boolean;
+  changeInfo?: boolean;
+};
+slowMode?: number; // seconds, 0 = off
+chatHistoryForNewMembers?: boolean;
+bannedUsers?: string[];
+```
+
+---
+
+## Part 5: Invite Links Management
+
+### 5.1 InviteLinksModal (new)
+- List of invite links with: link text, uses count, max uses, expiry
+- Create new link button (generates `t.me/+randomcode`)
+- Copy link button
+- Revoke link button
+- Edit link (max uses, expiry date)
+
+### 5.2 Logic
+- `createInviteLink(chatId)` generates a mock link
+- `revokeInviteLink(chatId, linkId)` removes it
+- Links stored on the Chat object
+
+---
+
+## Part 6: Admin Management
+
+### 6.1 AdminManagementModal (new)
+- List of admins with avatar, name, custom title
+- Click admin to edit permissions:
+  - Change channel/group info
+  - Post messages (channels)
+  - Edit messages of others
+  - Delete messages
+  - Ban users
+  - Invite users via link
+  - Pin messages
+  - Manage video chats
+  - Stay anonymous
+  - Add new admins
+- Promote member to admin
+- Demote admin
+- Custom admin title input
+
+### 6.2 Data Model
+```
+interface AdminPermissions {
+  changeInfo: boolean;
+  postMessages: boolean;
+  editMessages: boolean;
+  deleteMessages: boolean;
+  banUsers: boolean;
+  inviteUsers: boolean;
+  pinMessages: boolean;
+  manageVideoChats: boolean;
+  stayAnonymous: boolean;
+  addAdmins: boolean;
+}
+```
+
+---
+
+## Part 7: Member Management (Groups)
+
+### 7.1 MemberListModal (new or section in EditGroupModal)
+- Search members
+- Click member: view profile / promote to admin / restrict / ban / remove
+- Add member button
+- Sort by: name, last seen, join date
+
+---
+
+## Part 8: Clear History Feature
+
+### 8.1 ClearHistoryDialog (new in Modals.tsx)
+- Confirmation: "Delete all messages in this chat?"
+- Checkbox: "Also delete for [other party]" (personal chats)
+- Clears all messages for the chat from state
+
+### 8.2 Logic
+- `clearHistory(chatId, forAll)` in DexsterChat.tsx
+
+---
+
+## Part 9: Enhanced InfoPanel
+
+The current InfoPanel is basic. Enhance it to be more like Telegram's profile view:
+
+### 9.1 Channel InfoPanel Additions
+- Edit button (pencil icon) in header for owners/admins
+- Subscriber count with "N online" for groups
+- Invite link section (copyable)
+- Admin list (compact)
+- "Manage Channel" button for admins
+
+### 9.2 Group InfoPanel Additions  
+- "Add Member" button
+- Member search
+- Admin badges next to names
+- "Manage Group" button for admins
+
+### 9.3 Personal Chat InfoPanel
+- Add notification sound setting (placeholder)
+- Shared media tabs: make them actually filter and show message content
+- Edit own profile (bio, username) when viewing Saved Messages
+
+---
+
+## Part 10: More Missing Features
+
+### 10.1 Slow Mode (Groups)
+- Admin sets delay between messages (10s/30s/1m/5m/15m/1h)
+- Input area shows countdown timer when slow mode active
+- Disable send button during cooldown
+
+### 10.2 Clear Chat / Delete All Messages
+- Context menu on sidebar: "Clear history"
+- Opens ClearHistoryDialog
+
+### 10.3 Chat Permissions for Groups
+- Toggle what regular members can do
+- Enforced in the input area (disable features that are restricted)
+
+### 10.4 Username / Link for Channels
+- t.me/channelname copyable in info panel and edit modal
+- QR code placeholder
+
+---
+
+## Technical Summary
+
+### Files to Create:
+- None (all new modals go in Modals.tsx, all new UI in existing components)
+
+### Files to Modify:
+
+| File | Changes |
+|------|---------|
+| `src/types/chat.ts` | Add permissions, slowMode, signMessages, autoTranslate, accentColor, directMessages, inviteLinks, admins, bannedUsers, recentActions, chatHistoryForNewMembers |
+| `src/data/mockData.ts` | Add default invite links, admin data, permissions to existing channels/groups |
+| `src/components/chat/DexsterChat.tsx` | Add handlers: updateChannelSettings, updateGroupSettings, deleteChannel, clearHistory, createInviteLink, revokeInviteLink, promoteAdmin, demoteAdmin, banUser, restrictUser, slowMode enforcement. Add modal states. Pass new props |
+| `src/components/chat/ChatArea.tsx` | Add header three-dot menu dropdown with context-aware items. Add slow mode countdown UI. Fix reply contrast values |
+| `src/components/chat/MessageBubble.tsx` | Fix reply contrast (increase white opacity). Improve forwarded/pin/meta contrast |
+| `src/components/chat/InfoPanel.tsx` | Add edit button for admins, manage button, enhanced member list, invite link section, subscriber/admin counts |
+| `src/components/chat/Modals.tsx` | Add: EditChannelModal, EditGroupModal, InviteLinksModal, AdminManagementModal, ClearHistoryDialog, MemberListModal. Enhance existing modals |
+| `src/components/chat/Sidebar.tsx` | Add "Clear history" to context menu |
+
+### Priority Order:
+1. Fix reply contrast (immediate visual bug)
+2. Header three-dot menu (core missing feature)
+3. Edit Channel modal (most requested)
+4. Edit Group modal
+5. Clear history
+6. Invite links management
+7. Admin management
+8. Member management
+9. Slow mode
+10. InfoPanel enhancements
+
