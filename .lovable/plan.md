@@ -1,328 +1,209 @@
 
-# Full Frontend Backend Logic for Dexster Chat
+# Comprehensive UI Polish & Fix Plan for Dexster Chat
 
 ## Overview
-Make every feature in Dexster Chat fully functional with real client-side logic. Currently many buttons are placeholders (archive, block, attach menu, emoji picker, select mode, in-chat search, etc.). This plan implements complete working logic for every feature that doesn't require a real server.
+Systematic fix of all identified UI problems across every component, covering color contrast, spacing, layout, animations, interactivity, and visual consistency to bring Dexster Chat to production quality.
 
 ---
 
-## What "Full Backend" Means Here
-All state management, data persistence (in React state), business logic, validation, computed values, and UI interactions will be fully functional. The only thing NOT implemented is real-time network communication between users — everything else works as a complete local simulation.
+## Critical Issues (High Impact)
+
+### 1. Reply Preview Inside Own Message Bubble — Invisible Text
+**Problem**: When you reply to a message, the reply preview inside your own purple gradient bubble uses `bg-primary/[0.08]` and `text-primary` for the sender name — both blend into the purple gradient background, making content invisible.
+**Fix in MessageBubble.tsx**: Use white-based colors for reply previews when `isOwn` is true:
+- Reply sender name: `text-white/90` instead of `text-primary`
+- Reply text: `text-white/60` instead of `text-muted-foreground`
+- Reply background: `bg-white/10` instead of `bg-primary/[0.08]`
+- Reply left border: `border-white/40` instead of `border-primary`
+
+### 2. Forwarded Header Invisible in Own Bubbles
+**Problem**: Same issue — forwarded header uses `text-primary/70` and `border-primary/30` which disappears on own gradient bubbles.
+**Fix**: When `isOwn`, use `text-white/70` and `border-white/30`.
+
+### 3. Pinned Indicator Invisible in Own Bubbles
+**Problem**: `text-primary` pin indicator disappears on purple gradient.
+**Fix**: Use `text-white/70` when `isOwn`.
+
+### 4. Spoiler Text Contrast
+**Problem**: Spoiler blur uses `text-transparent` with a light textShadow — works on dark bubbles but may be inconsistent on own gradient.
+**Fix**: Ensure spoiler background contrast works on both bubble types.
+
+### 5. Hover Actions Bar Positioning — Overlapping/Clipping
+**Problem**: Hover actions bar uses `translate-x-full` positioning which can go outside viewport on messages near edges, and overlaps adjacent messages.
+**Fix**: Add bounds checking. For own messages at right edge, show actions to the left inside the bubble area. Add proper z-index layering.
+
+### 6. Reaction Picker Positioning
+**Problem**: Reaction picker can clip outside viewport on messages near top of chat. Uses `-top-12` absolute which may overlap with header.
+**Fix**: Add viewport bounds detection, flip to bottom if near top.
 
 ---
 
-## Changes by File
+## Moderate Issues (Visual Polish)
 
-### 1. `src/types/chat.ts` — Expanded Data Model
+### 7. Message Bubble Max Width & Alignment
+**Problem**: Some messages feel cramped, and channel posts need better visual separation from regular messages.
+**Fix**: Ensure consistent padding, channel posts get `py-4` instead of `py-2`, add subtle bottom margin between messages.
 
-Add these fields/types to support all features:
+### 8. Code Block Styling
+**Problem**: Code blocks inside own bubbles use `bg-black/40` which looks okay but inline `code` uses `bg-black/30` — on the other person's bubble (which is already dark), contrast is poor.
+**Fix**: Different code background for own vs other: own = `bg-black/30`, other = `bg-white/10`.
 
-- **Message**: `type: 'message' | 'service' | 'poll' | 'dice'`, `pollData`, `scheduled`, `scheduledTime`, `silentSend`, `effect` (confetti/fireworks/hearts), `translated`, `autoDeleteAt`, `bookmarked`, `selected`
-- **PollData**: `{ question, options: {text, voters: string[]}[], multiChoice, quizMode, correctOption?, explanation? }`
-- **Chat**: `archived`, `blocked`, `autoDeleteTimer`, `folderId`, `markedUnread`, `draft`
-- **CustomFolder**: `{ id, name, includedChatIds, filters }`
-- **ScheduledMessage**: extends Message with scheduling metadata
-- **ContactInfo**: for contact sharing messages
-- **DiceResult**: `{ emoji: string, value: number }`
+### 9. Timestamp & Meta Positioning
+**Problem**: The timestamp line can wrap oddly on short messages. The "edited" label + time + checkmarks should be on a single line and properly right-aligned.
+**Fix**: Use `flex-shrink-0` and `whitespace-nowrap` on the meta line.
 
-### 2. `src/data/mockData.ts` — Rich Mock Data
+### 10. Sidebar Active Chat Highlight
+**Problem**: Active chat uses `bg-primary/[0.18]` which is very subtle. Needs stronger visual distinction.
+**Fix**: Use `bg-primary/[0.15]` with a left border accent: `border-l-3 border-primary`.
 
-- Add "Saved Messages" chat (id: 'saved', type: 'personal', special handling)
-- Add poll messages, dice messages, forwarded-without-name messages
-- Add archived chats (at least 2)
-- Add more varied messages: blockquotes, hashtags, mentions, URLs, underline formatting, code blocks
-- Add messages with effects
-- Add scheduled messages collection
-- Expand comments data
+### 11. Sidebar Pinned Section Separator
+**Problem**: Pin separator (`h-px bg-border mx-4`) is barely visible.
+**Fix**: Make it slightly more visible with a bit more contrast.
 
-### 3. `src/components/chat/DexsterChat.tsx` — Central State Engine
+### 12. Sidebar Unread Badge
+**Problem**: When `markedUnread` and `unread === 0`, an empty badge renders (empty circle).
+**Fix**: Show a small dot indicator instead of empty badge.
 
-New state variables and fully working handlers:
+### 13. Chat List Item — Last Message Truncation
+**Problem**: Last message can be too long and pushes the unread badge out of view.
+**Fix**: Add `max-w-[200px]` to the message preview text.
 
-**State additions:**
-- `selectMode` / `selectedMessages: Set<string>` — multi-select with real bulk operations
-- `archivedChats` — derived from chat.archived flag
-- `customFolders: CustomFolder[]` — user-created folders with real filtering
-- `scheduledMessages: Record<string, Message[]>` — per-chat scheduled messages with timer-based auto-send
-- `blockedUsers: Set<string>` — functional blocking (hides chat, prevents interaction)
-- `chatDrafts: Record<string, string>` — save draft text when switching chats
-- `autoDeleteTimers: Record<string, number>` — functional auto-delete with real setTimeout
-- `chatSearchQuery / chatSearchResults` — in-chat search state
-- `showEmojiPicker / showAttachMenu` — picker states
-- `pinnedIndex: Record<string, number>` — per-chat pin navigation index
-- `comments: Record<string, Comment[]>` — functional comment system
-- `showCommentsFor: string | null` — which post's comments are open
+### 14. Date Separator Sticky Behavior
+**Problem**: Date separators have `sticky top-0` but their `bg-dex-surface/80` may not fully cover content scrolling behind.
+**Fix**: Add `backdrop-blur-sm` and ensure proper z-index stacking.
 
-**New fully working handlers:**
-- `archiveChat(id)` — moves to archived, removes from main list
-- `unarchiveChat(id)` — restores from archive
-- `blockUser(id)` — marks as blocked, filters from view
-- `unblockUser(id)` — restores
-- `markUnread(id)` — sets markedUnread flag (shows unread badge = 1)
-- `saveDraft(chatId, text)` — auto-saves on chat switch
-- `restoreDraft(chatId)` — restores input text on chat select
-- `setAutoDelete(chatId, timer)` — sets auto-delete, starts timers for existing messages
-- `scheduleMessage(text, time)` — adds to scheduled list, setTimeout to auto-send at time
-- `cancelScheduled(msgId)` — removes from scheduled
-- `sendSilent(text)` — sends message marked as silent (no notification indicator)
-- `sendWithEffect(text, effect)` — sends with confetti/fireworks/hearts
-- `translateMessage(msgId)` — mock translation (reverses/shuffles words as demo)
-- `bookmarkMessage(msg)` — forwards to Saved Messages
-- `createPoll(question, options, multiChoice, quizMode)` — creates interactive poll message
-- `votePoll(msgId, optionIndex)` — toggles vote on poll
-- `rollDice(emoji)` — sends dice message with random result
-- `addComment(postId, text)` — adds comment to channel post
-- `bulkDelete(msgIds)` — deletes all selected messages
-- `bulkForward(msgIds, toChatId)` — forwards all selected
-- `createGroup(name, members, description)` — creates new group chat
-- `createCustomFolder(name, filters)` — creates folder with real filtering logic
-- `moveToFolder(chatId, folderId)` — assigns chat to folder
-- `searchInChat(query)` — filters messages, returns indices for navigation
-- `navigateSearch(direction)` — moves to next/prev search result
-- `cyclePinnedMessage(chatId)` — advances pinnedIndex for multi-pin navigation
-- `copyMessageLink(msg)` — generates mock link, copies to clipboard
-- `reportMessage(msg)` — shows confirmation toast
-- `leaveChat(chatId)` — removes from chats list with service message
+### 15. Unread Messages Separator
+**Problem**: The "Unread Messages" separator line styling is okay but could be more prominent.
+**Fix**: Add `py-1` padding and slightly bolder text.
 
-### 4. `src/components/chat/Sidebar.tsx` — Full Sidebar Logic
+### 16. Pin Banner — Visual Hierarchy
+**Problem**: Pin banner blends too much with the header area.
+**Fix**: Add a slightly stronger background tint and ensure text truncation works properly.
 
-- **Archived section**: Collapsible "Archived Chats (N)" row at top, expands to show archived chats, click to open, context menu to unarchive
-- **Mark as unread**: Context menu option that sets badge to 1 and marks chat
-- **Move to folder submenu**: Nested context menu showing all folders + "New Folder"
-- **Mute submenu**: Expandable options (1h, 8h, 2 days, forever) with real timers that auto-unmute
-- **Block user**: Functional in context menu
-- **Custom folder creation**: "+" tab that opens inline folder editor
-- **Folder filtering**: Custom folders actually filter by assigned chatIds
-- **Draft indicator**: Show "[Draft] text..." in chat preview when draft exists
-- **Saved Messages**: Special chat item with bookmark icon
-- **New Group**: Opens CreateGroupModal when clicked
+### 17. Context Menu — Position Clamping
+**Problem**: Context menu clamps to `window.innerHeight - 300` which may still clip for menus with many items.
+**Fix**: Dynamically calculate menu height after render and adjust position.
 
-### 5. `src/components/chat/ChatArea.tsx` — Complete Chat Logic
+### 18. Context Menu — Missing Quick Reactions on Sidebar
+**Problem**: Sidebar context menu doesn't have the reaction row (correct), but the divider styling between items is inconsistent.
+**Fix**: Normalize divider margins across all context menus.
 
-- **In-chat search**: Click magnifying glass opens search bar under header, real-time message filtering with yellow highlight, up/down navigation between matches, "X of Y" counter, media type filter tabs
-- **Select mode**: Toggle via context menu, checkboxes on all messages, bottom toolbar with count + Delete/Forward/Copy buttons, all functional
-- **Emoji picker panel**: Full emoji grid with 8 categories (Smileys, People, Animals, Food, Activities, Travel, Objects, Symbols), search, recently used tracking (stored in state), click inserts at cursor
-- **Attach menu**: Dropdown from paperclip with Photo/Video, Document, Poll, Location, Contact — Poll opens PollCreationModal, others show toast "Feature simulated"
-- **Scheduled send**: Clock icon next to send, opens date/time picker, scheduled messages viewable via header icon
-- **Silent send**: Shift+click on send button sends without notification marker
-- **Message effects**: Long-press or dropdown on send button to choose confetti/fireworks/hearts, renders CSS particle animation overlay
-- **Pin banner navigation**: Click cycles through pinned messages, shows "1 of N", scrolls to and highlights target message
-- **Unread messages separator**: Horizontal line with "Unread Messages" label between last read and first unread
-- **Auto-delete indicator**: Shows timer icon in header if auto-delete is set
-- **Format toolbar**: Enhanced with blockquote (>) and underline (__) buttons
-- **Scroll-to-bottom badge**: Shows count of new messages since scrolled away
+### 19. Emoji Picker — Position & Overflow
+**Problem**: Emoji picker opens `absolute bottom-full left-0` inside the input area container, which can clip at the left edge.
+**Fix**: Position relative to the emoji button, ensure it stays within viewport.
 
-### 6. `src/components/chat/MessageBubble.tsx` — Enhanced Parser & Logic
-
-- **Text parser additions**:
-  - `__underline__` renders as `<u>`
-  - `> blockquote` renders with left border + indent background
-  - `#hashtag` renders as clickable purple link
-  - `@mention` renders as clickable styled link
-  - URL auto-detection renders as clickable `<a>` tags
-  - Multi-line ` ``` code blocks ``` ` render with dark background, monospace font
-  - Expandable blockquotes (long quotes collapse with "Show more")
-- **Select mode checkbox**: Shows checkbox on left when selectMode is active
-- **Delete animation**: `msgOut` animation on delete before removal
-- **Translate option**: Context menu "Translate" calls handler, shows `[Translated] ...` prefix
-- **Copy link**: Context menu option for channel posts
-- **Big reaction**: Long-press on reaction shows enlarged animation
-- **See who reacted**: Click reaction pill shows tooltip with user names
-- **Poll rendering**: Inline poll component with vote bars, percentages, vote toggle
-- **Dice rendering**: Animated emoji with random result display
-- **Message effect overlay**: Confetti/fireworks/hearts CSS animation
-- **Scheduled indicator**: Clock icon instead of checkmarks for scheduled messages
-- **Silent send indicator**: Muted bell icon for silent messages
-- **Bookmark action**: Context menu "Save" to bookmark to Saved Messages
-
-### 7. `src/components/chat/InfoPanel.tsx` — Functional Panel
-
-- **Block user**: Calls blockUser handler, shows "Blocked" state, toggle to unblock
-- **Report**: Shows confirmation dialog, then toast "Reported"
-- **Leave/Delete**: Calls leaveChat/deleteChat with confirmation dialog
-- **Mute toggle**: Already works, add mute duration options
-- **Pinned messages section**: Lists all pinned messages, click scrolls to them
-- **Groups in common**: Shows mock "Groups in Common (N)" for personal chats
-- **Shared media tabs**: Clickable, filters messages by type (shows count)
-- **Channel link**: Shows copyable t.me/channelname for public channels
-- **Auto-delete setting**: Dropdown to set auto-delete timer (off/1 day/1 week/1 month)
-- **Per-chat background**: Color picker or preset selection, stored in chat state
-- **Member management**: Show roles (Owner/Admin/Member) for groups
-- **Edit own profile**: Editable bio/username fields in Saved Messages info
-
-### 8. `src/components/chat/Modals.tsx` — New Modals
-
-- **CreateGroupModal**: Name input, member selection from contacts (checkbox list), description, creates functional group
-- **PollCreationModal**: Question input, dynamic option inputs (add/remove), multi-choice toggle, quiz mode toggle with correct answer selector + explanation, creates real poll
-- **PinConfirmationDialog**: "Pin this message?" with "Notify all members" checkbox
-- **ReportDialog**: Report reason selection (Spam, Violence, Pornography, Other), confirmation
-- **MuteOptionsDialog**: Duration picker (1h, 8h, 2 days, forever, custom)
-- **SchedulePickerModal**: Calendar date picker + time picker, "Send when online" option
-- **FolderEditorModal**: Folder name, include/exclude chat picker, filter toggles
-- **AutoDeleteDialog**: Timer duration picker (off, 1 day, 1 week, 1 month)
-- **EffectPickerMenu**: Small dropdown showing confetti/fireworks/hearts options
-
-### 9. `src/components/chat/EmojiPicker.tsx` — New Component
-
-- Full emoji grid organized by 8 categories
-- Search input that filters emojis
-- Recently used section (tracks last 20 used emojis in state)
-- Click inserts emoji at cursor position in textarea
-- Smooth panel animation (slide-up from bottom)
-- Category tabs with emoji icons
-- ~500 common emojis included as data
-
-### 10. `src/components/chat/CommentsPanel.tsx` — New Component
-
-- Slide-up overlay panel for channel post comments
-- Header with back button, "Comments" title, count
-- Comment list: avatar + colored name + text + time
-- Reply to specific comments (nested)
-- Add comment input at bottom
-- Reactions on comments
-- All persisted in state
-
-### 11. `src/components/chat/PollMessage.tsx` — New Component
-
-- Question text displayed prominently
-- Option list with vote buttons
-- Visual vote bars (percentage fill animation)
-- Vote count per option
-- Total votes display
-- Multi-choice: checkboxes, single-choice: radio behavior
-- Quiz mode: correct/incorrect highlight after voting, explanation reveal
-- "Retract Vote" option after voting
-
-### 12. `src/index.css` — New Animations
-
-- `@keyframes confetti` — particle burst effect
-- `@keyframes fireworks` — expanding sparkle effect
-- `@keyframes hearts` — floating hearts effect
-- `@keyframes deleteCollapse` — height collapse for message deletion
-- `@keyframes highlightSearch` — yellow pulse for search matches
-- `@keyframes slideUpPanel` — for comments panel
+### 20. Format Toolbar Buttons
+**Problem**: Format toolbar buttons are plain and lack active state feedback.
+**Fix**: Add active/pressed state with `bg-primary/20` and transition.
 
 ---
 
-## Feature Completeness Checklist (Everything Fully Functional)
+## Minor Issues (Fine-tuning)
 
-**Messaging:**
-- [x] Send/receive (Enter, Shift+Enter newline)
-- [x] Reply with preview
-- [x] Edit with "edited" label
-- [x] Delete with confirmation + animation
-- [x] Forward with modal
-- [x] Copy text + toast
-- [ ] Silent send (Shift+click send)
-- [ ] Scheduled messages (date/time picker, auto-send)
-- [ ] Message effects (confetti/fireworks/hearts)
-- [ ] Auto-delete timer (per-chat, functional)
-- [ ] Bookmark to Saved Messages
-- [ ] Translate (mock)
-- [ ] Dice/random (animated emoji result)
+### 21. Textarea Auto-expand
+**Problem**: The minHeight reset to 20px on every keystroke can cause flickering.
+**Fix**: Only reset when content actually changes height.
 
-**Text Formatting:**
-- [x] Bold, Italic, Code, Strikethrough, Spoiler
-- [ ] Underline (__text__)
-- [ ] Blockquotes (> text)
-- [ ] Expandable blockquotes
-- [ ] Hashtag detection (#tag)
-- [ ] Mention detection (@user)
-- [ ] URL auto-linking
-- [ ] Multi-line code blocks
+### 22. Send Button Animation
+**Problem**: The send button scale from `0.95 to 1` transition is abrupt.
+**Fix**: Add `duration-200` and a smoother ease.
 
-**Selection & Bulk:**
-- [ ] Select mode toggle
-- [ ] Multi-select with checkboxes
-- [ ] Bulk delete
-- [ ] Bulk forward
-- [ ] Bulk copy
-- [ ] Select all / deselect
+### 23. Scroll-to-Bottom FAB
+**Problem**: FAB appears/disappears without smooth transition.
+**Fix**: Use opacity + translateY transition instead of sudden mount/unmount.
 
-**Search:**
-- [ ] In-chat search bar
-- [ ] Real-time highlight in messages
-- [ ] Result navigation (up/down)
-- [ ] Result counter (X of Y)
-- [ ] Media type filter
+### 24. Service Messages
+**Problem**: Service messages are functional but could use slightly more vertical spacing.
+**Fix**: Change `my-2` to `my-3` and add `py-1.5`.
 
-**Reactions:**
-- [x] Emoji reactions + burst
-- [x] Reaction picker
-- [x] Toggle own reaction
-- [x] Quick reaction (double-click)
-- [ ] See who reacted (tooltip)
-- [ ] Big/hold reaction
+### 25. Typing Indicator in Header
+**Problem**: Typing dots animation works but the dots are very small (1px width).
+**Fix**: Increase to `w-1.5 h-1.5` for better visibility.
 
-**Pins:**
-- [x] Pin/Unpin messages
-- [x] Pin banner
-- [ ] Multi-pin navigation (1 of N, click to cycle)
-- [ ] Pin confirmation dialog
-- [ ] Scroll to pinned + highlight
+### 26. Online Dot Size Consistency
+**Problem**: Sidebar online dot is 12px (w-3 h-3) but header online dot is 10px (w-2.5 h-2.5). Inconsistent.
+**Fix**: Standardize to w-3 h-3 everywhere.
 
-**Organization:**
-- [x] Pin/Mute/Delete chats
-- [x] Chat folders (All/Personal/Groups/Channels)
-- [ ] Archive/Unarchive chats
-- [ ] Custom folder creation
-- [ ] Move to folder
-- [ ] Mark as unread
-- [ ] Mute with duration options
-- [ ] Saved Messages chat
-- [ ] Chat drafts (auto-save)
-- [ ] Block/Unblock users
+### 27. Avatar Text Sizing
+**Problem**: Saved Messages bookmark emoji avatar styling is inconsistent — nested spans create layout issues.
+**Fix**: Clean up the Saved Messages avatar rendering.
 
-**Channels & Groups:**
-- [x] Create Channel (2-step)
-- [x] Channel posts with views/comments/shares
-- [ ] Comments panel (functional)
-- [ ] Create Group modal
-- [ ] Member roles (Owner/Admin/Member)
-- [ ] Leave group/channel (functional)
+### 28. Info Panel — Shared Media Placeholder
+**Problem**: The 🖼 placeholder grid looks unpolished.
+**Fix**: Use a cleaner placeholder with rounded-lg and subtle border.
 
-**Interactive Messages:**
-- [ ] Polls (create, vote, retract, results)
-- [ ] Quiz mode polls
-- [ ] Dice messages
+### 29. Info Panel — Member List Spacing
+**Problem**: Member list items in group info lack consistent padding.
+**Fix**: Add `px-1 rounded-lg hover:bg-dex-hover` cursor-pointer styling.
 
-**Emoji & Attachments:**
-- [ ] Full emoji picker with categories + search
-- [ ] Recently used emojis
-- [ ] Attach menu dropdown
-- [ ] Poll creation from attach menu
+### 30. Poll Message — Option Button States
+**Problem**: Voted options lack clear visual feedback after click.
+**Fix**: Add a smooth transition on the percentage bar fill and a subtle bounce.
 
-**Info Panel:**
-- [x] Profile display
-- [x] Notifications toggle
-- [ ] Block/Report/Leave (functional)
-- [ ] Pinned messages list
-- [ ] Auto-delete settings
-- [ ] Shared media filtering
-- [ ] Channel link copy
-- [ ] Groups in common
-- [ ] Per-chat background
+### 31. Comments Panel — Full Screen Issue
+**Problem**: Comments panel uses `fixed inset-0` covering the entire screen including sidebar.
+**Fix**: Change to only cover the chat area (position relative to parent).
 
-**UI Polish:**
-- [x] Typing indicator
-- [x] Online status
-- [x] Date separators
-- [x] Scroll-to-bottom button
-- [ ] Unread messages separator
-- [ ] Scroll-to-bottom with unread count badge
-- [ ] Delete message animation
-- [ ] Keyboard shortcuts (Ctrl+E, Ctrl+R, Ctrl+I)
+### 32. Modal Backdrop Consistency
+**Problem**: All modals use `bg-black/60` but some should be slightly darker for better focus.
+**Fix**: Standardize to `bg-black/50 backdrop-blur-sm`.
+
+### 33. Input Area Border
+**Problem**: The pill input `bg-muted` blends with the overall dark theme.
+**Fix**: Add a subtle `border border-border/50` to the pill container.
+
+### 34. Attach Menu — Dice Section
+**Problem**: The "Roll Dice" section in attach menu feels like an afterthought.
+**Fix**: Better visual separation and slightly larger emoji buttons.
+
+### 35. Effect Indicator Position
+**Problem**: The "Effect: confetti" indicator uses `absolute -top-8 right-16` which can overlap with other elements.
+**Fix**: Move to inline indicator near the send button.
+
+### 36. Folder Tab Unread Badge Contrast
+**Problem**: Active folder tab unread badge uses `bg-primary-foreground/20` which is barely visible on the active primary background.
+**Fix**: Use `bg-white/30` for active tab badges.
+
+### 37. Chat Header — Action Buttons Spacing
+**Problem**: Search and menu buttons in header are slightly too close together.
+**Fix**: Add `gap-2` instead of `gap-1`.
+
+### 38. Keyboard Shortcut Labels in Context Menu
+**Problem**: Shortcuts like "Ctrl+R" are very faded (`opacity-0.4`).
+**Fix**: Increase to `opacity-0.5` and use a slightly lighter color.
+
+### 39. New Chat Dropdown — Z-index
+**Problem**: New chat dropdown may appear behind other elements.
+**Fix**: Ensure `z-50` is applied and add click-outside-to-close behavior.
+
+### 40. Select Mode Toolbar — Button Consistency
+**Problem**: Select mode toolbar buttons have different sizes and styles.
+**Fix**: Standardize all buttons to same height, padding, and font weight.
 
 ---
 
-## Technical Notes
+## Technical Implementation
 
-- All state is managed via React useState/useCallback in DexsterChat.tsx — no external state library needed
-- Scheduled messages use setTimeout with cleanup on unmount
-- Auto-delete uses setTimeout per message, cleared on component unmount  
-- Emoji data is a static array (~500 emojis) defined in EmojiPicker.tsx
-- Poll votes are stored in message.pollData.options[].voters array
-- Search uses simple string matching with regex for highlighting
-- Draft persistence uses a Record<string, string> keyed by chatId
-- Custom folders store chatId arrays and filter predicates
-- All timers (mute duration, auto-delete, scheduled send) use real setTimeout with useEffect cleanup
+### Files to modify:
+1. **MessageBubble.tsx** — Fixes 1-6, 8-9 (contrast-aware colors for own vs other bubbles)
+2. **ChatArea.tsx** — Fixes 7, 14-16, 19-23, 31, 33-35, 37, 40
+3. **Sidebar.tsx** — Fixes 10-13, 36, 39
+4. **ContextMenu.tsx** — Fixes 17-18, 38
+5. **InfoPanel.tsx** — Fixes 28-29
+6. **PollMessage.tsx** — Fix 30
+7. **CommentsPanel.tsx** — Fix 31
+8. **EmojiPicker.tsx** — Fix 19
+9. **Modals.tsx** — Fix 32
+10. **index.css** — Fix 23, add smooth transition utilities
+
+### Core Pattern: Own-Bubble-Aware Styling
+The primary fix pattern is adding conditional classes based on `isOwn`:
+```
+const metaColor = isOwn ? 'text-white/55' : 'text-muted-foreground';
+const replyBg = isOwn ? 'bg-white/10' : 'bg-primary/[0.08]';
+const replyBorder = isOwn ? 'border-white/40' : 'border-primary';
+const replyName = isOwn ? 'text-white/90' : 'text-primary';
+const replyText = isOwn ? 'text-white/60' : 'text-muted-foreground';
+```
+
+This pattern needs to be applied consistently to ALL inline elements within message bubbles: reply previews, forwarded headers, pin indicators, code blocks, hashtags, mentions, URLs, spoilers, scheduled/silent indicators, translated labels, and channel post footers.
