@@ -132,6 +132,16 @@ const SpoilerText: React.FC<{ text: string; isOwn?: boolean }> = ({ text, isOwn 
   );
 };
 
+// Deterministic color from senderId
+const getSenderColor = (senderId: string): string => {
+  let hash = 0;
+  for (let i = 0; i < senderId.length; i++) {
+    hash = senderId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = ((hash % 360) + 360) % 360;
+  return `${hue} 70% 60%`;
+};
+
 const MessageBubble: React.FC<MessageBubbleProps> = ({
   message, chat, onReply, onEdit, onDelete, onForward, onPin, onReaction,
   onBookmark, onTranslate, onCopyLink, onSelect, onVotePoll, onOpenComments,
@@ -273,6 +283,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             {message.senderName}
             {chat.members?.find(m => m.id === message.senderId) && message.senderId === chat.members[0]?.id && (
               <span className="ml-1 text-[10px] text-muted-foreground bg-muted/50 px-1 rounded">admin</span>
+            )}
+          </div>
+        )}
+
+        {/* Channel sender name with unique color */}
+        {isChannel && (
+          <div className="text-xs font-semibold mb-1" style={{ color: `hsl(${getSenderColor(message.senderId)})` }}>
+            {message.senderName || chat.name}
+            {chat.admins?.find(a => a.userId === message.senderId) && (
+              <span className="ml-1.5 text-[10px] text-muted-foreground bg-muted/50 px-1 rounded">
+                {chat.admins.find(a => a.userId === message.senderId)?.title || 'admin'}
+              </span>
             )}
           </div>
         )}
