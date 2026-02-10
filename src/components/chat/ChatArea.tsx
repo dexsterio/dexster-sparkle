@@ -482,7 +482,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       )}
 
       {/* Input Area */}
-      {!selectMode && (
+      {!selectMode && chat.blocked && (
+        <div className="flex items-center justify-center px-4 py-4 border-t border-border">
+          <span className="text-sm text-muted-foreground">🚫 User is blocked. Unblock to send messages.</span>
+        </div>
+      )}
+      {!selectMode && !chat.blocked && (
         <div className="flex items-end gap-2 px-4 py-3 border-t border-border relative">
           <button onClick={() => setShowFormatBar(!showFormatBar)} className="p-2 rounded-lg hover:bg-dex-hover text-muted-foreground flex-shrink-0">
             <Type size={18} />

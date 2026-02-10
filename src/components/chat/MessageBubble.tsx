@@ -169,12 +169,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isOwn = message.isOwn;
 
   // ── Contrast-aware color tokens (HIGH CONTRAST for own bubbles) ──
-  const ownBubble = isOwn && !isChannel;
+  // Apply high-contrast tokens to ALL own messages (including channel posts)
+  const ownBubble = isOwn;
   const metaColor = ownBubble ? 'text-white/60' : 'text-muted-foreground';
-  const replyBg = ownBubble ? 'bg-white/[0.18]' : 'bg-primary/[0.08]';
-  const replyBorder = ownBubble ? 'border-white/60' : 'border-primary';
+  const replyBg = ownBubble ? 'bg-white/[0.22]' : 'bg-primary/[0.08]';
+  const replyBorder = ownBubble ? 'border-white/70' : 'border-primary';
   const replyName = ownBubble ? 'text-white font-bold' : 'text-primary';
-  const replyText = ownBubble ? 'text-white/80' : 'text-muted-foreground';
+  const replyText = ownBubble ? 'text-white/85' : 'text-muted-foreground';
   const fwdColor = ownBubble ? 'text-white/80' : 'text-primary/70';
   const fwdBorder = ownBubble ? 'border-white/50' : 'border-primary/30';
   const pinColor = ownBubble ? 'text-white/80' : 'text-primary';
