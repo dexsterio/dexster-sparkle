@@ -235,6 +235,96 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   ];
 
   const displayText = message.translated || message.text;
+  const isMediaMessage = message.type === 'gif';
+
+  // Media messages (GIF, images, videos) render without bubble
+  if (isMediaMessage) {
+    return (
+      <div
+        id={`msg-${message.id}`}
+        className={`flex ${isOwn && !isChannel ? 'justify-end' : 'justify-start'} mb-1.5 relative group animate-[msgIn_0.2s_ease-out] ${isCurrentSearchMatch ? 'bg-dex-warning/10 rounded-lg' : isSearchMatch ? 'bg-primary/[0.05] rounded-lg' : ''}`}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => { setHovered(false); setShowReactionPicker(false); setShowReactedBy(null); }}
+        onContextMenu={handleContextMenu}
+        onDoubleClick={handleDoubleClick}
+        onClick={selectMode ? () => onToggleSelect(message.id) : undefined}
+      >
+        {selectMode && (
+          <div className="flex items-center mr-2 flex-shrink-0">
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'}`}>
+              {isSelected && <span className="text-white text-xs">✓</span>}
+            </div>
+          </div>
+        )}
+
+        <div className="relative max-w-[320px]">
+          {/* Channel sender name */}
+          {isChannel && (
+            <div className="text-xs font-semibold mb-1" style={{ color: `hsl(${getSenderColor(message.senderId)})` }}>
+              {message.senderName || chat.name}
+            </div>
+          )}
+
+          {message.type === 'gif' && message.gifUrl && (
+            <img src={message.gifUrl} alt="GIF" className="w-full h-auto rounded-2xl" loading="lazy" />
+          )}
+
+          {/* Time overlay */}
+          <div className={`absolute bottom-2 right-2 text-[11px] px-1.5 py-0.5 rounded-lg bg-black/50 text-white/90`}>
+            {message.time}
+            {isOwn && !message.scheduled && (
+              <span className="ml-1 inline-block align-middle">
+                {message.read ? (
+                  <svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L4.5 9L11 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7"/><path d="M5 5.5L8.5 9L15 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7"/></svg>
+                ) : (
+                  <svg width="12" height="11" viewBox="0 0 12 11" fill="none"><path d="M1 5.5L4.5 9L11 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.45"/></svg>
+                )}
+              </span>
+            )}
+          </div>
+
+          {/* Reactions */}
+          {message.reactions && message.reactions.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1 relative">
+              {message.reactions.map((r, i) => {
+                const isMine = r.users.includes('me');
+                return (
+                  <button key={i} onClick={() => handleReaction(r.emoji)}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-xl text-[11.5px] font-semibold transition-transform duration-150 hover:scale-110 ${isMine ? 'bg-primary/25 border border-primary/40' : 'bg-white/[0.07] border border-white/[0.08]'}`}>
+                    {r.emoji} {r.users.length}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Hover actions */}
+        {hovered && !contextMenu && !selectMode && (
+          <div className={`absolute ${isOwn && !isChannel ? 'right-auto left-0 -translate-x-[calc(100%+4px)]' : 'left-auto right-0 translate-x-[calc(100%+4px)]'} top-0 flex items-center gap-0.5 px-1.5 py-1 rounded-lg bg-popover border border-border shadow-lg animate-[fadeIn_0.12s_ease] z-10`}>
+            <button onClick={() => setShowReactionPicker(!showReactionPicker)} className="p-1 hover:bg-dex-hover rounded text-sm">😊</button>
+            <button onClick={() => onReply(message)} className="p-1 hover:bg-dex-hover rounded text-sm">↩️</button>
+            <button onClick={() => onForward(message)} className="p-1 hover:bg-dex-hover rounded text-sm">↗️</button>
+            <button onClick={(e) => setContextMenu({ x: e.clientX, y: e.clientY })} className="p-1 hover:bg-dex-hover rounded text-sm">⋮</button>
+          </div>
+        )}
+
+        {showReactionPicker && (
+          <div className={`absolute ${isOwn && !isChannel ? 'right-0' : 'left-0'} -top-12 flex gap-1 px-2 py-1.5 rounded-full bg-popover border border-border shadow-lg animate-[reactionPickerIn_0.2s_cubic-bezier(0.34,1.56,0.64,1)] z-20`}>
+            {QUICK_REACTIONS.map(emoji => (
+              <button key={emoji} onClick={() => handleReaction(emoji)} className="text-lg hover:scale-[1.35] transition-transform duration-150 p-0.5">{emoji}</button>
+            ))}
+          </div>
+        )}
+
+        {contextMenu && (
+          <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextItems}
+            quickReactions={QUICK_REACTIONS} onReaction={(emoji) => { handleReaction(emoji); setContextMenu(null); }}
+            onClose={() => setContextMenu(null)} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -246,7 +336,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       onDoubleClick={handleDoubleClick}
       onClick={selectMode ? () => onToggleSelect(message.id) : undefined}
     >
-      {/* Select checkbox */}
       {selectMode && (
         <div className="flex items-center mr-2 flex-shrink-0">
           <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'}`}>
@@ -304,12 +393,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <PollMessage pollData={message.pollData} onVote={(idx) => onVotePoll(message.id, idx)} isOwn={isOwn && !isChannel} />
         )}
 
-        {/* GIF content */}
-        {message.type === 'gif' && message.gifUrl && (
-          <div className="rounded-lg overflow-hidden max-w-[280px]">
-            <img src={message.gifUrl} alt="GIF" className="w-full h-auto rounded-lg" loading="lazy" />
-          </div>
-        )}
+        {/* GIF content removed — rendered without bubble above */}
 
         {/* Text content */}
         {message.type === 'message' && (
