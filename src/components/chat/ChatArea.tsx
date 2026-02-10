@@ -2,12 +2,14 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chat, Message, MessageEffect } from '@/types/chat';
 import MessageBubble from './MessageBubble';
 import EmojiPicker from './EmojiPicker';
-import { Search, MoreVertical, ArrowDown, ArrowUp, X, Paperclip, Smile, Mic, Send, Check, Type, Clock, Sparkles, Bell, BellOff, Settings, BarChart3, Trash2, LogOut, Ban, UserPlus } from 'lucide-react';
+import GifPicker from './GifPicker';
+import { Search, MoreVertical, ArrowDown, ArrowUp, X, Paperclip, Smile, Mic, Send, Check, Type, Clock, Sparkles, Bell, BellOff, Settings, BarChart3, Trash2, LogOut, Ban, UserPlus, Image } from 'lucide-react';
 
 interface ChatAreaProps {
   chat: Chat;
   messages: Message[];
   onSendMessage: (text: string, options?: { silent?: boolean; effect?: MessageEffect }) => void;
+  onSendGif: (gifUrl: string) => void;
   onReply: (msg: Message) => void;
   onEdit: (msg: Message) => void;
   onDelete: (msg: Message) => void;
@@ -69,7 +71,7 @@ interface ChatAreaProps {
 const DICE_EMOJIS = ['🎲', '🎯', '🏀', '⚽', '🎰', '🎳'];
 
 const ChatArea: React.FC<ChatAreaProps> = ({
-  chat, messages, onSendMessage, onReply, onEdit, onDelete, onForward, onPin, onReaction,
+  chat, messages, onSendMessage, onSendGif, onReply, onEdit, onDelete, onForward, onPin, onReaction,
   onBookmark, onTranslate, onCopyLink, onSelect, onVotePoll, onOpenComments,
   replyTo, editMsg, onCancelReply, onCancelEdit, onSaveEdit, onHeaderClick, typingUsers,
   selectMode, selectedMessages, onToggleSelect, onSelectAll, onExitSelect, onBulkDelete, onBulkForward, onBulkCopy,
@@ -84,6 +86,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const [showFormatBar, setShowFormatBar] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [newMsgCount, setNewMsgCount] = useState(0);
@@ -532,6 +535,16 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             </button>
             {showEmojiPicker && (
               <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmojiPicker(false)} recentEmojis={recentEmojis} />
+            )}
+          </div>
+
+          {/* GIF Picker */}
+          <div className="relative">
+            <button onClick={() => setShowGifPicker(!showGifPicker)} className="p-2 rounded-lg hover:bg-dex-hover text-muted-foreground flex-shrink-0" title="Send GIF">
+              <span className="text-xs font-bold leading-none">GIF</span>
+            </button>
+            {showGifPicker && (
+              <GifPicker onSelect={(url) => { onSendGif(url); setShowGifPicker(false); }} onClose={() => setShowGifPicker(false)} />
             )}
           </div>
 

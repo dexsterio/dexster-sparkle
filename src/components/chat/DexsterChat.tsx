@@ -143,6 +143,27 @@ const DexsterChat: React.FC = () => {
     }
   }, [activeChat, replyTo, pendingEffect, chats]);
 
+  // ========= SEND GIF =========
+  const sendGif = useCallback((gifUrl: string) => {
+    const newMsg: Message = {
+      id: `gif_${Date.now()}`,
+      chatId: activeChat,
+      senderId: 'me',
+      senderName: 'You',
+      text: '',
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      date: '2026-02-10',
+      isOwn: true,
+      read: false,
+      type: 'gif',
+      gifUrl,
+      replyTo: replyTo ? { messageId: replyTo.id, senderName: replyTo.senderName, text: replyTo.text.slice(0, 60) } : undefined,
+    };
+    setMessages(prev => ({ ...prev, [activeChat]: [...(prev[activeChat] || []), newMsg] }));
+    setChats(prev => prev.map(c => c.id === activeChat ? { ...c, lastMessage: 'GIF', lastMessageSender: 'You', lastTime: newMsg.time } : c));
+    setReplyTo(null);
+  }, [activeChat, replyTo]);
+
   // ========= EDIT =========
   const saveEdit = useCallback((text: string) => {
     if (!editMsg) return;
@@ -733,6 +754,7 @@ const DexsterChat: React.FC = () => {
           chat={chat}
           messages={chatMessages}
           onSendMessage={sendMessage}
+          onSendGif={sendGif}
           onReply={setReplyTo}
           onEdit={setEditMsg}
           onDelete={setDeleteMsg}
