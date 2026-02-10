@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
 
-  const allFolders = [...DEFAULT_FOLDERS, ...customFolders.map(f => ({ id: f.id, label: `${f.emoji} ${f.name}` }))];
+  const allFolders = [...DEFAULT_FOLDERS, ...(customFolders || []).map(f => ({ id: f.id, label: `${f.emoji} ${f.name}` }))];
 
   const filteredChats = useMemo(() => {
     let filtered = chats;

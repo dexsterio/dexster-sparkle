@@ -325,11 +325,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                   onVotePoll={onVotePoll}
                   onOpenComments={onOpenComments}
                   selectMode={selectMode}
-                  isSelected={selectedMessages.has(msg.id)}
+                  isSelected={selectedMessages?.has(msg.id) ?? false}
                   onToggleSelect={onToggleSelect}
                   searchHighlight={searchQuery}
-                  isSearchMatch={searchResults.includes(msg.id)}
-                  isCurrentSearchMatch={searchResults[searchIndex] === msg.id}
+                  isSearchMatch={(searchResults || []).includes(msg.id)}
+                  isCurrentSearchMatch={(searchResults || [])[searchIndex] === msg.id}
                 />
               </React.Fragment>
             ))}
