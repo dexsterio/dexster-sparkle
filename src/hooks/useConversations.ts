@@ -281,6 +281,89 @@ export function useConversations() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
   });
 
+  // ── Block ──
+  const blockMutation = useMutation({
+    mutationFn: (id: string) =>
+      api.post(`/messages/conversations/${id}/block`),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['conversations'] });
+      queryClient.setQueryData<Chat[]>(['conversations'], old =>
+        (old ?? []).map(c => c.id === id ? { ...c, blocked: true } : c)
+      );
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+  });
+
+  // ── Unblock ──
+  const unblockMutation = useMutation({
+    mutationFn: (id: string) =>
+      api.delete(`/messages/conversations/${id}/block`),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['conversations'] });
+      queryClient.setQueryData<Chat[]>(['conversations'], old =>
+        (old ?? []).map(c => c.id === id ? { ...c, blocked: false } : c)
+      );
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+  });
+
+  // ── Clear history ──
+  const clearHistoryMutation = useMutation({
+    mutationFn: ({ id, forAll }: { id: string; forAll: boolean }) =>
+      api.delete(`/messages/conversations/${id}/history`, { forAll }),
+    onSuccess: (_data, { id }) => {
+      queryClient.setQueryData(['messages', id], []);
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+
+  // ── Update settings ──
+  const updateSettingsMutation = useMutation({
+    mutationFn: ({ id, settings }: { id: string; settings: Record<string, unknown> }) =>
+      api.put(`/messages/conversations/${id}/settings`, settings),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+  });
+
+  // ── Set auto-delete ──
+  const setAutoDeleteMutation = useMutation({
+    mutationFn: ({ id, timer }: { id: string; timer: number }) =>
+      api.put(`/messages/conversations/${id}/auto-delete`, { timer }),
+    onMutate: async ({ id, timer }) => {
+      queryClient.setQueryData<Chat[]>(['conversations'], old =>
+        (old ?? []).map(c => c.id === id ? { ...c, autoDeleteTimer: timer } : c)
+      );
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+  });
+
+  // ── Report ──
+  const reportMutation = useMutation({
+    mutationFn: ({ conversationId, reason }: { conversationId: string; reason: string }) =>
+      api.post('/messages/report', { conversationId: Number(conversationId), reason }),
+  });
+
+  // ── Mark unread ──
+  const markUnreadMutation = useMutation({
+    mutationFn: (id: string) =>
+      api.post(`/messages/conversations/${id}/mark-unread`),
+    onMutate: async (id) => {
+      queryClient.setQueryData<Chat[]>(['conversations'], old =>
+        (old ?? []).map(c => c.id === id ? { ...c, markedUnread: true, unread: Math.max(c.unread, 1) } : c)
+      );
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+  });
+
+  // ── Move to folder ──
+  const moveToFolderMutation = useMutation({
+    mutationFn: ({ chatId, folderId }: { chatId: string; folderId: string }) =>
+      api.put(`/messages/conversations/${chatId}/folder`, { folderId: Number(folderId) }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+    },
+  });
+
   // ── Stable callbacks ──
   const pinConversation = useCallback(
     (args: { id: string; pinned: boolean }) => pinMutation.mutate(args),
@@ -343,6 +426,46 @@ export function useConversations() {
     [rejectRequestMutation]
   );
 
+  const blockConversation = useCallback(
+    (id: string) => blockMutation.mutate(id),
+    [blockMutation]
+  );
+
+  const unblockConversation = useCallback(
+    (id: string) => unblockMutation.mutate(id),
+    [unblockMutation]
+  );
+
+  const clearHistory = useCallback(
+    (args: { id: string; forAll: boolean }) => clearHistoryMutation.mutate(args),
+    [clearHistoryMutation]
+  );
+
+  const updateSettings = useCallback(
+    (args: { id: string; settings: Record<string, unknown> }) => updateSettingsMutation.mutateAsync(args),
+    [updateSettingsMutation]
+  );
+
+  const setAutoDelete = useCallback(
+    (args: { id: string; timer: number }) => setAutoDeleteMutation.mutate(args),
+    [setAutoDeleteMutation]
+  );
+
+  const reportConversation = useCallback(
+    (args: { conversationId: string; reason: string }) => reportMutation.mutateAsync(args),
+    [reportMutation]
+  );
+
+  const markUnread = useCallback(
+    (id: string) => markUnreadMutation.mutate(id),
+    [markUnreadMutation]
+  );
+
+  const moveToFolder = useCallback(
+    (args: { chatId: string; folderId: string }) => moveToFolderMutation.mutate(args),
+    [moveToFolderMutation]
+  );
+
   return {
     conversations,
     isLoading: query.isLoading,
@@ -359,5 +482,13 @@ export function useConversations() {
     createDM,
     acceptRequest,
     rejectRequest,
+    blockConversation,
+    unblockConversation,
+    clearHistory,
+    updateSettings,
+    setAutoDelete,
+    reportConversation,
+    markUnread,
+    moveToFolder,
   };
 }
