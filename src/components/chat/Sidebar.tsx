@@ -3,6 +3,7 @@ import { Chat, CustomFolder } from '@/types/chat';
 import ContextMenu, { ContextMenuItem } from './ContextMenu';
 import { Search, Edit3, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import MobileBottomNav, { MobileTab } from './MobileBottomNav';
+import NotificationBell from './NotificationBell';
 
 interface SidebarProps {
   chats: Chat[];
@@ -158,7 +159,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-primary-foreground font-bold text-sm">D</div>
           <span className="text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Dexster</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
+          <NotificationBell />
           <button onClick={() => setShowSearch(!showSearch)} className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground">
             <Search size={18} />
           </button>

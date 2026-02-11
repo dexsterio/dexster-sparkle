@@ -7,6 +7,7 @@ import { useMessages } from '@/hooks/useMessages';
 import { useFolders } from '@/hooks/useFolders';
 import { useInviteLinks } from '@/hooks/useInviteLinks';
 import { useMembers } from '@/hooks/useMembers';
+import { useMediaUpload } from '@/hooks/useMediaUpload';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -50,6 +51,7 @@ const DexsterChat: React.FC = () => {
   // Hooks that depend on activeChat
   const { inviteLink, generateLink: apiGenerateInviteLink } = useInviteLinks(activeChat);
   const { members, changeRole } = useMembers(activeChat);
+  const { isUploading, progress: uploadProgress, uploadImage, uploadVideo, uploadFile } = useMediaUpload();
 
   // Message actions
   const [replyTo, setReplyTo] = useState<Message | null>(null);
@@ -807,6 +809,26 @@ const DexsterChat: React.FC = () => {
           onAcceptRequest={() => { acceptRequest(activeChat); showToast('Förfrågan godkänd'); }}
           onRejectRequest={() => { rejectRequest(activeChat); showToast('Förfrågan nekad'); }}
           requestRecipientName={chat?.name}
+          onImageSelect={async (file) => {
+            try {
+              const result = await uploadImage(file);
+              await apiSendMessage({ encryptedContent: result.url, clientMsgId: crypto.randomUUID(), type: 'image' as any });
+            } catch { showToast('Failed to upload image'); }
+          }}
+          onVideoSelect={async (file) => {
+            try {
+              const result = await uploadVideo(file);
+              await apiSendMessage({ encryptedContent: result.url, clientMsgId: crypto.randomUUID(), type: 'video' as any });
+            } catch { showToast('Failed to upload video'); }
+          }}
+          onFileSelect={async (file) => {
+            try {
+              const result = await uploadFile(file);
+              await apiSendMessage({ encryptedContent: `[${file.name}](${result.url})`, clientMsgId: crypto.randomUUID() });
+            } catch { showToast('Failed to upload file'); }
+          }}
+          isUploading={isUploading}
+          uploadProgress={uploadProgress}
         />
       )}
 
