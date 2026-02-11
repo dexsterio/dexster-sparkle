@@ -69,6 +69,11 @@ interface ChatAreaProps {
   slowModeRemaining?: number;
   isMobile?: boolean;
   onBack?: () => void;
+  // Message request
+  requestStatus?: 'none' | 'pending_sent' | 'pending_received' | 'accepted' | 'rejected';
+  onAcceptRequest?: () => void;
+  onRejectRequest?: () => void;
+  requestRecipientName?: string;
 }
 
 const DICE_EMOJIS = ['🎲', '🎯', '🏀', '⚽', '🎰', '🎳'];
@@ -84,6 +89,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   pendingEffect, onSetEffect, onToggleEffectPicker, showEffectPicker,
   onMuteChat, onClearHistory, onLeaveChat, onBlockUser, onDeleteChat, onManageChannel, onManageGroup, onReport,
   slowMode, slowModeRemaining, isMobile, onBack,
+  requestStatus, onAcceptRequest, onRejectRequest, requestRecipientName,
 }) => {
   const [inputText, setInputText] = useState('');
   const [showFormatBar, setShowFormatBar] = useState(false);
@@ -543,13 +549,42 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         </div>
       )}
 
-      {/* Input Area */}
-      {!selectMode && chat.blocked && (
+      {/* Message Request: Pending Sent (sender sees this) */}
+      {!selectMode && requestStatus === 'pending_sent' && (
+        <div className="flex flex-col items-center justify-center px-4 py-6 border-t border-border gap-2" style={isMobile ? { paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' } : undefined}>
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-1">
+            <Clock size={20} className="text-primary" />
+          </div>
+          <p className="text-sm text-muted-foreground text-center max-w-[300px]">
+            Du kan bara skicka ett meddelande tills att <span className="font-semibold text-foreground">{requestRecipientName || chat.name}</span> har accepterat din förfrågan
+          </p>
+        </div>
+      )}
+
+      {/* Message Request: Pending Received (recipient sees this) */}
+      {!selectMode && requestStatus === 'pending_received' && (
+        <div className="flex flex-col items-center justify-center px-4 py-6 border-t border-border gap-3" style={isMobile ? { paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' } : undefined}>
+          <p className="text-sm text-muted-foreground text-center max-w-[320px]">
+            <span className="font-semibold text-foreground">{chat.name}</span> vill skicka meddelanden till dig
+          </p>
+          <div className="flex gap-3">
+            <button onClick={onAcceptRequest} className="px-5 py-2.5 rounded-xl text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+              Godkänn förfrågan
+            </button>
+            <button onClick={onRejectRequest} className="px-5 py-2.5 rounded-xl text-sm font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20 transition-colors">
+              Neka förfrågan
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Blocked */}
+      {!selectMode && chat.blocked && requestStatus !== 'pending_sent' && requestStatus !== 'pending_received' && (
         <div className="flex items-center justify-center px-4 py-4 border-t border-border" style={isMobile ? { paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' } : undefined}>
           <span className="text-sm text-muted-foreground">🚫 User is blocked. Unblock to send messages.</span>
         </div>
       )}
-      {!selectMode && !chat.blocked && (
+      {!selectMode && !chat.blocked && requestStatus !== 'pending_sent' && requestStatus !== 'pending_received' && (
         <div className="flex items-end gap-1.5 md:gap-2 px-2 md:px-4 py-2 md:py-3 border-t border-border relative" style={isMobile ? { paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' } : undefined}>
           {!isMobile && (
             <button onClick={() => setShowFormatBar(!showFormatBar)} className="p-2 rounded-lg hover:bg-dex-hover text-muted-foreground flex-shrink-0">

@@ -31,7 +31,7 @@ const DexsterChat: React.FC = () => {
     pinConversation, muteConversation, archiveConversation,
     markRead, leaveConversation, deleteConversation,
     createGroup: apiCreateGroup, createChannel: apiCreateChannel,
-    createDM,
+    createDM, acceptRequest, rejectRequest,
   } = useConversations();
 
   const { folders: customFolders, createFolder: apiCreateFolder } = useFolders();
@@ -218,7 +218,14 @@ const DexsterChat: React.FC = () => {
     });
     setReplyTo(null);
     setPendingEffect(null);
-  }, [activeChat, replyTo, pendingEffect, apiSendMessage]);
+
+    // If this is a new DM (pending request), lock input after first message
+    if (chat?.type === 'personal' && chat?.requestStatus === 'none') {
+      queryClient.setQueryData<Chat[]>(['conversations'], old =>
+        (old ?? []).map(c => c.id === activeChat ? { ...c, requestStatus: 'pending_sent' as const } : c)
+      );
+    }
+  }, [activeChat, replyTo, pendingEffect, apiSendMessage, chat, queryClient]);
 
   // ========= SEND GIF =========
   const sendGif = useCallback(async (gifUrl: string) => {
@@ -754,6 +761,10 @@ const DexsterChat: React.FC = () => {
           slowMode={chat?.slowMode}
           isMobile={isMobile}
           onBack={handleMobileBack}
+          requestStatus={chat?.requestStatus}
+          onAcceptRequest={() => { acceptRequest(activeChat); showToast('Förfrågan godkänd'); }}
+          onRejectRequest={() => { rejectRequest(activeChat); showToast('Förfrågan nekad'); }}
+          requestRecipientName={chat?.name}
         />
       )}
 
@@ -843,8 +854,13 @@ const DexsterChat: React.FC = () => {
             const result = await createDM({ recipientId });
             setShowNewChatModal(false);
             if (result?.id) {
+              // New DMs start as pending_sent
+              queryClient.setQueryData<Chat[]>(['conversations'], old =>
+                (old ?? []).map(c => c.id === String(result.id) ? { ...c, requestStatus: 'pending_sent' as const } : c)
+              );
               setActiveChat(String(result.id));
               queryClient.invalidateQueries({ queryKey: ['conversations'] });
+              if (isMobile) setMobileView('chat');
             }
           } catch {
             setShowNewChatModal(false);
