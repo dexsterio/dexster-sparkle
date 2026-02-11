@@ -1,6 +1,7 @@
 import React from 'react';
 import { Chat, Message } from '@/types/chat';
 import { X, Bell, BellOff, Ban, AlertTriangle, Trash2, Clock, Link, LogOut, Settings, Edit3, Shield, UserPlus, Copy } from 'lucide-react';
+import { useMembers } from '@/hooks/useMembers';
 
 interface InfoPanelProps {
   chat: Chat;
@@ -20,6 +21,8 @@ interface InfoPanelProps {
 }
 
 const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBlock, onUnblock, onReport, onLeave, onDelete, onSetAutoDelete, messages, onManageChannel, onManageGroup, isMobile }) => {
+  const { members: apiMembers, isLoading: membersLoading } = useMembers(open && (chat.type === 'group' || chat.type === 'channel') ? chat.id : '');
+
   if (!open) return null;
 
   const isChannel = chat.type === 'channel';
@@ -179,18 +182,45 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBl
         </>
       )}
 
-      {/* Members for groups */}
-      {isGroup && chat.members && (
+      {/* Members for groups — from API */}
+      {(isGroup || isChannel) && (
         <div className="px-4 mb-3">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Members ({chat.members.length})</h4>
-          {chat.members.map((m, i) => (
-            <div key={m.id} className="flex items-center gap-2 py-2 px-1 rounded-lg hover:bg-dex-hover cursor-pointer transition-colors">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white" style={{ background: `hsl(${m.color})` }}>{m.avatar}</div>
-              <span className="text-sm text-foreground flex-1">{m.name}</span>
-              {i === 0 && <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">owner</span>}
-              {m.online && <span className="w-2.5 h-2.5 rounded-full bg-dex-online" />}
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            {isChannel ? 'Subscribers' : 'Members'} ({apiMembers.length || chat.memberCount || chat.members?.length || 0})
+          </h4>
+          {membersLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
-          ))}
+          ) : apiMembers.length > 0 ? (
+            apiMembers.map((m) => {
+              const initials = (m.displayName || m.username).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+              const hue = (m.userId * 137) % 360;
+              return (
+                <div key={m.id} className="flex items-center gap-2 py-2 px-1 rounded-lg hover:bg-dex-hover cursor-pointer transition-colors">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white" style={{ background: m.avatarUrl ? undefined : `hsl(${hue} 65% 55%)` }}>
+                    {m.avatarUrl ? <img src={m.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" /> : initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-foreground truncate block">{m.displayName || m.username}</span>
+                    <span className="text-[10px] text-muted-foreground">@{m.username}</span>
+                  </div>
+                  {m.role === 'owner' && <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">owner</span>}
+                  {m.role === 'admin' && <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded">admin</span>}
+                  {m.isOnline && <span className="w-2.5 h-2.5 rounded-full bg-dex-online" />}
+                </div>
+              );
+            })
+          ) : chat.members ? (
+            chat.members.map((m, i) => (
+              <div key={m.id} className="flex items-center gap-2 py-2 px-1 rounded-lg hover:bg-dex-hover cursor-pointer transition-colors">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white" style={{ background: `hsl(${m.color})` }}>{m.avatar}</div>
+                <span className="text-sm text-foreground flex-1">{m.name}</span>
+                {i === 0 && <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">owner</span>}
+                {m.online && <span className="w-2.5 h-2.5 rounded-full bg-dex-online" />}
+              </div>
+            ))
+          ) : null}
         </div>
       )}
 

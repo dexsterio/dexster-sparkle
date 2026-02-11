@@ -74,6 +74,12 @@ interface ChatAreaProps {
   onAcceptRequest?: () => void;
   onRejectRequest?: () => void;
   requestRecipientName?: string;
+  // Media upload
+  onImageSelect?: (file: File) => void;
+  onVideoSelect?: (file: File) => void;
+  onFileSelect?: (file: File) => void;
+  isUploading?: boolean;
+  uploadProgress?: number;
 }
 
 const DICE_EMOJIS = ['🎲', '🎯', '🏀', '⚽', '🎰', '🎳'];
@@ -90,7 +96,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   onMuteChat, onClearHistory, onLeaveChat, onBlockUser, onDeleteChat, onManageChannel, onManageGroup, onReport,
   slowMode, slowModeRemaining, isMobile, onBack,
   requestStatus, onAcceptRequest, onRejectRequest, requestRecipientName,
+  onImageSelect, onVideoSelect, onFileSelect, isUploading, uploadProgress,
 }) => {
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [inputText, setInputText] = useState('');
   const [showFormatBar, setShowFormatBar] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -602,14 +612,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                 <Sheet open={showAttachMenu} onOpenChange={setShowAttachMenu}>
                   <SheetContent side="bottom" className="rounded-t-2xl p-0">
                     <div className="py-2">
-                      {[
-                        { label: '📷 Photo/Video', action: () => {} },
-                        { label: '📄 Document', action: () => {} },
+                     {[
+                        { label: '📷 Photo/Video', action: () => { setShowAttachMenu(false); imageInputRef.current?.click(); } },
+                        { label: '📄 Document', action: () => { setShowAttachMenu(false); fileInputRef.current?.click(); } },
                         { label: '📊 Poll', action: () => { setShowAttachMenu(false); onCreatePoll(); } },
-                        { label: '📍 Location', action: () => {} },
-                        { label: '👤 Contact', action: () => {} },
                       ].map(item => (
-                        <button key={item.label} onClick={() => { item.action(); setShowAttachMenu(false); }}
+                        <button key={item.label} onClick={() => { item.action(); }}
                           className="flex items-center gap-3 w-full px-5 py-3.5 text-sm active:bg-dex-hover text-foreground transition-colors">{item.label}</button>
                       ))}
                       <div className="h-px bg-border mx-4 my-1" />
@@ -626,13 +634,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               ) : (
               <div className="absolute bottom-full left-0 mb-2 bg-popover border border-border rounded-xl shadow-xl z-30 min-w-[180px] animate-[contextIn_0.15s_ease-out]">
                 {[
-                  { label: '📷 Photo/Video', action: () => {} },
-                  { label: '📄 Document', action: () => {} },
+                  { label: '📷 Photo/Video', action: () => { setShowAttachMenu(false); imageInputRef.current?.click(); } },
+                  { label: '📄 Document', action: () => { setShowAttachMenu(false); fileInputRef.current?.click(); } },
                   { label: '📊 Poll', action: () => { setShowAttachMenu(false); onCreatePoll(); } },
-                  { label: '📍 Location', action: () => {} },
-                  { label: '👤 Contact', action: () => {} },
                 ].map(item => (
-                  <button key={item.label} onClick={() => { item.action(); setShowAttachMenu(false); }}
+                  <button key={item.label} onClick={() => { item.action(); }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">{item.label}</button>
                 ))}
                 <div className="h-px bg-border mx-3 my-1" />
@@ -690,6 +696,29 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Hidden file inputs */}
+          <input ref={imageInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            if (file.type.startsWith('video/')) onVideoSelect?.(file);
+            else onImageSelect?.(file);
+            e.target.value = '';
+          }} />
+          <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onFileSelect?.(file);
+            e.target.value = '';
+          }} />
+
+          {isUploading && (
+            <div className="flex items-center gap-2 text-xs text-primary">
+              <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${uploadProgress || 0}%` }} />
+              </div>
+              <span>{uploadProgress || 0}%</span>
             </div>
           )}
 
