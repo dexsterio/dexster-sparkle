@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Chat, Message, ChatType, GroupPermissions, InviteLink, AdminEntry, User } from '@/types/chat';
-import { X, Copy, Trash2, Plus, Shield, Crown, Link } from 'lucide-react';
+import { X, Copy, Trash2, Plus, Shield, Crown, Link, Camera, Image, Users, Bell, Clock, Lock, MessageSquare, Hash, Globe, Eye, EyeOff, AlertTriangle, Megaphone } from 'lucide-react';
 import { useUserSearch } from '@/hooks/useUserSearch';
 
 const MODAL_BACKDROP = "fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-[fadeIn_0.15s_ease-out]";
@@ -68,10 +68,60 @@ export const ForwardModal: React.FC<ForwardModalProps> = ({ chats, onForward, on
   );
 };
 
+// ============= AVATAR UPLOAD COMPONENT =============
+const AvatarUpload: React.FC<{ 
+  avatarPreview: string | null; 
+  avatarUrl?: string;
+  fallback: string;
+  fallbackColor: string;
+  size?: 'sm' | 'lg';
+  onSelect: (file: File) => void;
+}> = ({ avatarPreview, avatarUrl, fallback, fallbackColor, size = 'lg', onSelect }) => {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const dim = size === 'lg' ? 'w-20 h-20' : 'w-16 h-16';
+  const iconSize = size === 'lg' ? 24 : 18;
+  
+  return (
+    <div className="relative group cursor-pointer" onClick={() => fileRef.current?.click()}>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => {
+        const f = e.target.files?.[0];
+        if (f) onSelect(f);
+      }} />
+      {avatarPreview || avatarUrl ? (
+        <img src={avatarPreview || avatarUrl} alt="Avatar" className={`${dim} rounded-full object-cover`} />
+      ) : (
+        <div className={`${dim} rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground/40`}
+          style={fallback !== '📷' ? { background: `hsl(${fallbackColor})` } : {}}>
+          {fallback === '📷' ? <Camera size={iconSize} /> : <span className="text-xl font-bold text-white">{fallback}</span>}
+        </div>
+      )}
+      <div className={`absolute inset-0 ${dim} rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity`}>
+        <Camera size={iconSize} className="text-white" />
+      </div>
+    </div>
+  );
+};
+
+// ============= TOGGLE SWITCH =============
+const Toggle: React.FC<{ value: boolean; onChange: (v: boolean) => void }> = ({ value, onChange }) => (
+  <button onClick={() => onChange(!value)} className={`w-10 h-[22px] rounded-full transition-colors ${value ? 'bg-primary' : 'bg-muted'} flex items-center ${value ? 'justify-end' : 'justify-start'} px-0.5`}>
+    <div className="w-[18px] h-[18px] rounded-full bg-white transition-all" />
+  </button>
+);
+
 // ============= CREATE CHANNEL MODAL =============
 interface CreateChannelModalProps {
   onClose: () => void;
-  onCreate: (name: string, description: string, isPublic: boolean, comments: boolean, reactions: boolean) => void;
+  onCreate: (data: {
+    name: string;
+    description: string;
+    isPublic: boolean;
+    comments: boolean;
+    reactions: boolean;
+    avatarFile?: File;
+    signMessages: boolean;
+    joinApproval: boolean;
+  }) => void;
 }
 
 export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({ onClose, onCreate }) => {
@@ -81,51 +131,171 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({ onClose,
   const [isPublic, setIsPublic] = useState(true);
   const [comments, setComments] = useState(true);
   const [reactions, setReactions] = useState(true);
+  const [signMessages, setSignMessages] = useState(false);
+  const [joinApproval, setJoinApproval] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  const handleAvatarSelect = useCallback((file: File) => {
+    setAvatarFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => setAvatarPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+  }, []);
+
+  const handleCreate = () => {
+    onCreate({
+      name, description, isPublic, comments, reactions,
+      avatarFile: avatarFile || undefined,
+      signMessages, joinApproval,
+    });
+  };
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-6 w-[420px]`} onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-foreground">{step === 1 ? 'New Channel' : 'Channel Settings'}</h3>
+      <div className={`${MODAL_CARD} p-6 w-[440px] max-h-[85vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
+        {/* Header with step indicator */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <h3 className="text-base font-semibold text-foreground">
+              {step === 1 ? 'New Channel' : step === 2 ? 'Channel Type' : 'Settings'}
+            </h3>
+            <div className="flex gap-1">
+              {[1, 2, 3].map(s => (
+                <div key={s} className={`w-2 h-2 rounded-full transition-colors ${s <= step ? 'bg-primary' : 'bg-muted'}`} />
+              ))}
+            </div>
+          </div>
           <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
         </div>
-        {step === 1 ? (
+
+        {step === 1 && (
           <>
-            <div className="flex justify-center mb-4">
-              <div className="w-20 h-20 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-2xl text-muted-foreground/30">📷</div>
+            {/* Avatar upload */}
+            <div className="flex justify-center mb-5">
+              <AvatarUpload
+                avatarPreview={avatarPreview}
+                fallback="📷"
+                fallbackColor=""
+                onSelect={handleAvatarSelect}
+              />
             </div>
+            <p className="text-center text-xs text-muted-foreground mb-4">Tap to add a channel photo</p>
+
             <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Channel Name</label>
-            <input value={name} onChange={e => setName(e.target.value)} className="w-full mt-1 mb-3 px-3 py-2 rounded-lg bg-muted text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Channel name" />
+            <input autoFocus value={name} onChange={e => setName(e.target.value)} maxLength={64}
+              className="w-full mt-1 mb-1 px-3 py-2.5 rounded-lg bg-muted text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Channel name" />
+            <p className="text-[10px] text-muted-foreground mb-3">{name.length}/64</p>
+
             <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Description</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full mt-1 px-3 py-2 rounded-lg bg-muted text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary resize-none" placeholder="Optional description" />
+            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} maxLength={255}
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-muted text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary resize-none" placeholder="What is this channel about?" />
+            <p className="text-[10px] text-muted-foreground mt-1">{description.length}/255</p>
+
             <div className="flex justify-end mt-4">
-              <button disabled={!name.trim()} onClick={() => setStep(2)} className="px-5 py-2 rounded-lg text-sm bg-primary text-primary-foreground disabled:opacity-40 transition-opacity">Next</button>
+              <button disabled={!name.trim()} onClick={() => setStep(2)}
+                className="px-5 py-2.5 rounded-lg text-sm bg-primary text-primary-foreground disabled:opacity-40 transition-opacity font-medium">
+                Next
+              </button>
             </div>
           </>
-        ) : (
+        )}
+
+        {step === 2 && (
           <>
-            <div className="space-y-3 mb-4">
-              <div className="flex gap-2">
-                {[{ pub: true, icon: '🌐', label: 'Public', desc: 'Anyone can find and join' }, { pub: false, icon: '🔒', label: 'Private', desc: 'Only via invite link' }].map(opt => (
-                  <button key={String(opt.pub)} onClick={() => setIsPublic(opt.pub)} className={`flex-1 p-3 rounded-xl border text-left transition-colors ${isPublic === opt.pub ? 'border-primary bg-primary/10' : 'border-border hover:bg-dex-hover'}`}>
-                    <div className="text-lg mb-1">{opt.icon}</div>
-                    <div className="text-sm font-semibold text-foreground">{opt.label}</div>
-                    <div className="text-[11px] text-muted-foreground">{opt.desc}</div>
-                  </button>
-                ))}
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              {[
+                { pub: true, icon: <Globe size={20} />, label: 'Public Channel', desc: 'Anyone can find and join via search' },
+                { pub: false, icon: <Lock size={20} />, label: 'Private Channel', desc: 'Only accessible via invite link' },
+              ].map(opt => (
+                <button key={String(opt.pub)} onClick={() => setIsPublic(opt.pub)}
+                  className={`p-4 rounded-xl border text-left transition-all ${isPublic === opt.pub ? 'border-primary bg-primary/10 shadow-[0_0_0_1px_hsl(var(--primary)/0.3)]' : 'border-border hover:bg-dex-hover'}`}>
+                  <div className={`mb-2 ${isPublic === opt.pub ? 'text-primary' : 'text-muted-foreground'}`}>{opt.icon}</div>
+                  <div className="text-sm font-semibold text-foreground">{opt.label}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            {!isPublic && (
+              <div className="p-3 rounded-lg bg-muted/50 border border-border mb-4">
+                <div className="flex items-start gap-2">
+                  <Link size={14} className="text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-foreground font-medium">Invite link will be generated</p>
+                    <p className="text-[11px] text-muted-foreground">Share the link with people you want to invite after creating the channel.</p>
+                  </div>
+                </div>
               </div>
-              {[{ label: 'Allow Comments', value: comments, set: setComments }, { label: 'Allow Reactions', value: reactions, set: setReactions }].map(t => (
-                <div key={t.label} className="flex items-center justify-between py-2">
-                  <span className="text-sm text-foreground">{t.label}</span>
-                  <button onClick={() => t.set(!t.value)} className={`w-9 h-5 rounded-full transition-colors ${t.value ? 'bg-primary' : 'bg-muted'} flex items-center ${t.value ? 'justify-end' : 'justify-start'} px-0.5`}>
-                    <div className="w-4 h-4 rounded-full bg-white transition-all" />
-                  </button>
+            )}
+
+            {isPublic && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-dex-hover">
+                  <div>
+                    <span className="text-sm text-foreground">Join approval</span>
+                    <div className="text-[11px] text-muted-foreground">Review join requests before accepting</div>
+                  </div>
+                  <Toggle value={joinApproval} onChange={setJoinApproval} />
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-between mt-4">
+              <button onClick={() => setStep(1)} className="px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-dex-hover transition-colors">Back</button>
+              <button onClick={() => setStep(3)} className="px-5 py-2.5 rounded-lg text-sm bg-primary text-primary-foreground font-medium">Next</button>
+            </div>
+          </>
+        )}
+
+        {step === 3 && (
+          <>
+            <div className="space-y-1 mb-5">
+              {[
+                { icon: <MessageSquare size={16} />, label: 'Allow Comments', desc: 'Enable discussion threads under posts', value: comments, set: setComments },
+                { icon: <span className="text-sm">😊</span>, label: 'Allow Reactions', desc: 'Let subscribers react to posts', value: reactions, set: setReactions },
+                { icon: <Megaphone size={16} />, label: 'Sign Messages', desc: 'Show admin name on channel posts', value: signMessages, set: setSignMessages },
+              ].map(t => (
+                <div key={t.label} className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-dex-hover">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-muted-foreground">{t.icon}</span>
+                    <div>
+                      <span className="text-sm text-foreground">{t.label}</span>
+                      <div className="text-[11px] text-muted-foreground">{t.desc}</div>
+                    </div>
+                  </div>
+                  <Toggle value={t.value} onChange={t.set} />
                 </div>
               ))}
             </div>
+
+            {/* Preview card */}
+            <div className="p-3 rounded-xl border border-border bg-dex-surface mb-5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Preview</p>
+              <div className="flex items-center gap-3">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="" className="w-10 h-10 rounded-full object-cover" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
+                    {name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-semibold text-foreground truncate">{name}</span>
+                    {isPublic ? <Globe size={12} className="text-muted-foreground flex-shrink-0" /> : <Lock size={12} className="text-muted-foreground flex-shrink-0" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate">{description || 'No description'}</p>
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-between">
-              <button onClick={() => setStep(1)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-dex-hover transition-colors">Back</button>
-              <button onClick={() => onCreate(name, description, isPublic, comments, reactions)} className="px-5 py-2 rounded-lg text-sm bg-primary text-primary-foreground">Create Channel</button>
+              <button onClick={() => setStep(2)} className="px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-dex-hover transition-colors">Back</button>
+              <button onClick={handleCreate}
+                className="px-6 py-2.5 rounded-lg text-sm bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors">
+                Create Channel
+              </button>
             </div>
           </>
         )}
@@ -574,7 +744,7 @@ export const ClearHistoryDialog: React.FC<ClearHistoryDialogProps> = ({ chatName
   );
 };
 
-// ============= EDIT CHANNEL MODAL =============
+// ============= EDIT CHANNEL MODAL (Telegram-style Manage Channel) =============
 interface EditChannelModalProps {
   chat: Chat;
   onSave: (settings: Partial<Chat>) => void;
@@ -593,94 +763,252 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave
   const [signMessages, setSignMessages] = useState(chat.signMessages ?? false);
   const [autoTranslate, setAutoTranslate] = useState(chat.autoTranslate ?? false);
   const [directMessages, setDirectMessages] = useState(chat.directMessages ?? true);
+  const [restrictedContent, setRestrictedContent] = useState(chat.restrictedContent ?? false);
+  const [joinApproval, setJoinApproval] = useState(chat.joinApproval ?? false);
+  const [joinToSend, setJoinToSend] = useState(chat.joinToSend ?? true);
+  const [slowMode, setSlowMode] = useState(chat.slowMode ?? 0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [activeSection, setActiveSection] = useState<'main' | 'permissions' | 'notifications'>('main');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  const handleAvatarSelect = useCallback((file: File) => {
+    setAvatarFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => setAvatarPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+  }, []);
+
+  const slowModeOptions = [
+    { label: 'Off', value: 0 }, { label: '10s', value: 10 }, { label: '30s', value: 30 },
+    { label: '1m', value: 60 }, { label: '5m', value: 300 }, { label: '15m', value: 900 }, { label: '1h', value: 3600 },
+  ];
 
   const handleSave = () => {
-    onSave({ name, description, isPublic, commentsEnabled, reactionsEnabled, signMessages, autoTranslate, directMessages });
+    onSave({
+      name, description, isPublic, commentsEnabled, reactionsEnabled, signMessages,
+      autoTranslate, directMessages, restrictedContent, joinApproval, joinToSend, slowMode,
+    });
   };
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-6 w-[460px] max-h-[85vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-semibold text-foreground">Edit Channel</h3>
+      <div className={`${MODAL_CARD} p-0 w-[480px] max-h-[85vh] flex flex-col`} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-3">
+          <h3 className="text-base font-semibold text-foreground">Manage Channel</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
         </div>
 
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white flex-shrink-0" style={{ background: `hsl(${chat.avatarColor})` }}>
-            {chat.avatar}
-          </div>
-          <div className="flex-1">
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Channel Name</label>
-            <input value={name} onChange={e => setName(e.target.value)} className="w-full mt-1 px-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-          </div>
-        </div>
-
-        <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Description</label>
-        <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full mt-1 mb-4 px-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none" />
-
-        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Settings</div>
-        <div className="space-y-1 mb-4">
-          <div className="flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-dex-hover">
-            <div><span className="text-sm text-foreground">Channel type</span><div className="text-[11px] text-muted-foreground">{isPublic ? 'Public — anyone can find' : 'Private — invite only'}</div></div>
-            <button onClick={() => setIsPublic(!isPublic)} className={`px-3 py-1 rounded-full text-xs font-medium ${isPublic ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
-              {isPublic ? '🌐 Public' : '🔒 Private'}
-            </button>
-          </div>
+        {/* Section tabs */}
+        <div className="flex px-6 gap-1 mb-3">
           {[
-            { label: 'Direct Messages', desc: 'Allow users to DM each other', value: directMessages, set: setDirectMessages },
-            { label: 'Sign Messages', desc: 'Show admin name on posts', value: signMessages, set: setSignMessages },
-            { label: 'Auto-translate', desc: 'Translate messages for subscribers', value: autoTranslate, set: setAutoTranslate },
-            { label: 'Allow Comments', desc: 'Enable discussion under posts', value: commentsEnabled, set: setCommentsEnabled },
-            { label: 'Allow Reactions', desc: 'Let subscribers react to posts', value: reactionsEnabled, set: setReactionsEnabled },
-          ].map(t => (
-            <div key={t.label} className="flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-dex-hover">
-              <div><span className="text-sm text-foreground">{t.label}</span><div className="text-[11px] text-muted-foreground">{t.desc}</div></div>
-              <button onClick={() => t.set(!t.value)} className={`w-10 h-5.5 rounded-full transition-colors ${t.value ? 'bg-primary' : 'bg-muted'} flex items-center ${t.value ? 'justify-end' : 'justify-start'} px-0.5`}>
-                <div className="w-4.5 h-4.5 rounded-full bg-white transition-all" />
-              </button>
-            </div>
+            { key: 'main' as const, label: 'General' },
+            { key: 'permissions' as const, label: 'Permissions' },
+            { key: 'notifications' as const, label: 'Management' },
+          ].map(tab => (
+            <button key={tab.key} onClick={() => setActiveSection(tab.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activeSection === tab.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-dex-hover'}`}>
+              {tab.label}
+            </button>
           ))}
         </div>
 
-        <div className="h-px bg-border my-3" />
+        <div className="flex-1 overflow-y-auto px-6 pb-5">
+          {activeSection === 'main' && (
+            <>
+              {/* Avatar + Name */}
+              <div className="flex items-center gap-4 mb-4">
+                <AvatarUpload
+                  avatarPreview={avatarPreview}
+                  avatarUrl={chat.avatarUrl}
+                  fallback={chat.avatar}
+                  fallbackColor={chat.avatarColor}
+                  size="sm"
+                  onSelect={handleAvatarSelect}
+                />
+                <div className="flex-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Channel Name</label>
+                  <input value={name} onChange={e => setName(e.target.value)} maxLength={64}
+                    className="w-full mt-1 px-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+              </div>
 
-        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Management</div>
-        <div className="space-y-0.5 mb-4">
-          <button onClick={onOpenInviteLinks} className="flex items-center justify-between w-full py-2.5 px-2 rounded-lg hover:bg-dex-hover text-sm text-foreground">
-            <div className="flex items-center gap-2"><Link size={16} /> Invite links</div>
-            <span className="text-xs text-muted-foreground">{(chat.inviteLinks || []).length}</span>
-          </button>
-          <button onClick={onOpenAdmins} className="flex items-center justify-between w-full py-2.5 px-2 rounded-lg hover:bg-dex-hover text-sm text-foreground">
-            <div className="flex items-center gap-2"><Shield size={16} /> Administrators</div>
-            <span className="text-xs text-muted-foreground">{(chat.admins || []).length}</span>
-          </button>
-          <div className="flex items-center justify-between py-2.5 px-2 text-sm text-foreground">
-            <span>Subscribers</span>
-            <span className="text-xs text-muted-foreground">{chat.subscriberCount?.toLocaleString()}</span>
-          </div>
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Description</label>
+              <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} maxLength={255}
+                className="w-full mt-1 mb-4 px-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none" />
+
+              {/* Channel type */}
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Channel Type</div>
+              <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-muted/50 border border-border mb-4">
+                <div className="flex items-center gap-2">
+                  {isPublic ? <Globe size={16} className="text-primary" /> : <Lock size={16} className="text-primary" />}
+                  <div>
+                    <span className="text-sm text-foreground">{isPublic ? 'Public' : 'Private'}</span>
+                    <div className="text-[11px] text-muted-foreground">{isPublic ? 'Anyone can find and join' : 'Invite link only'}</div>
+                  </div>
+                </div>
+                <button onClick={() => setIsPublic(!isPublic)}
+                  className="px-3 py-1 rounded-full text-xs font-medium bg-primary/15 text-primary hover:bg-primary/25 transition-colors">
+                  Change
+                </button>
+              </div>
+
+              {/* Settings list */}
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Settings</div>
+              <div className="space-y-0.5 mb-4">
+                {[
+                  { icon: <MessageSquare size={15} />, label: 'Allow Comments', desc: 'Enable discussion under posts', value: commentsEnabled, set: setCommentsEnabled },
+                  { icon: <span className="text-sm">😊</span>, label: 'Allow Reactions', desc: 'Let subscribers react to posts', value: reactionsEnabled, set: setReactionsEnabled },
+                  { icon: <Megaphone size={15} />, label: 'Sign Messages', desc: 'Show admin name on posts', value: signMessages, set: setSignMessages },
+                  { icon: <Globe size={15} />, label: 'Auto-translate', desc: 'Translate messages for subscribers', value: autoTranslate, set: setAutoTranslate },
+                  { icon: <Users size={15} />, label: 'Direct Messages', desc: 'Allow members to DM each other', value: directMessages, set: setDirectMessages },
+                ].map(t => (
+                  <div key={t.label} className="flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-dex-hover transition-colors">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-muted-foreground w-5 flex justify-center">{t.icon}</span>
+                      <div>
+                        <span className="text-sm text-foreground">{t.label}</span>
+                        <div className="text-[11px] text-muted-foreground">{t.desc}</div>
+                      </div>
+                    </div>
+                    <Toggle value={t.value} onChange={t.set} />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {activeSection === 'permissions' && (
+            <>
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Content & Access</div>
+              <div className="space-y-0.5 mb-4">
+                <div className="flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-dex-hover">
+                  <div className="flex items-center gap-2.5">
+                    <EyeOff size={15} className="text-muted-foreground" />
+                    <div>
+                      <span className="text-sm text-foreground">Restrict Saving Content</span>
+                      <div className="text-[11px] text-muted-foreground">Prevent forwarding and saving of posts</div>
+                    </div>
+                  </div>
+                  <Toggle value={restrictedContent} onChange={setRestrictedContent} />
+                </div>
+                <div className="flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-dex-hover">
+                  <div className="flex items-center gap-2.5">
+                    <Shield size={15} className="text-muted-foreground" />
+                    <div>
+                      <span className="text-sm text-foreground">Join Approval</span>
+                      <div className="text-[11px] text-muted-foreground">Review requests before accepting members</div>
+                    </div>
+                  </div>
+                  <Toggle value={joinApproval} onChange={setJoinApproval} />
+                </div>
+                <div className="flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-dex-hover">
+                  <div className="flex items-center gap-2.5">
+                    <MessageSquare size={15} className="text-muted-foreground" />
+                    <div>
+                      <span className="text-sm text-foreground">Join to Send Messages</span>
+                      <div className="text-[11px] text-muted-foreground">Only members can send in linked discussion</div>
+                    </div>
+                  </div>
+                  <Toggle value={joinToSend} onChange={setJoinToSend} />
+                </div>
+              </div>
+
+              {/* Slow mode */}
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Slow Mode</div>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {slowModeOptions.map(o => (
+                  <button key={o.value} onClick={() => setSlowMode(o.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${slowMode === o.value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-dex-hover'}`}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground mb-4">
+                {slowMode > 0 ? `Members can send one message every ${slowMode >= 3600 ? '1 hour' : slowMode >= 60 ? `${slowMode / 60} minute${slowMode > 60 ? 's' : ''}` : `${slowMode} seconds`}.` : 'Members can send messages without delay.'}
+              </p>
+            </>
+          )}
+
+          {activeSection === 'notifications' && (
+            <>
+              {/* Management links */}
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Management</div>
+              <div className="space-y-0.5 mb-4">
+                <button onClick={onOpenInviteLinks} className="flex items-center justify-between w-full py-3 px-3 rounded-lg hover:bg-dex-hover text-sm text-foreground transition-colors">
+                  <div className="flex items-center gap-2.5">
+                    <Link size={16} className="text-primary" />
+                    <span>Invite Links</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{(chat.inviteLinks || []).length} links</span>
+                </button>
+                <button onClick={onOpenAdmins} className="flex items-center justify-between w-full py-3 px-3 rounded-lg hover:bg-dex-hover text-sm text-foreground transition-colors">
+                  <div className="flex items-center gap-2.5">
+                    <Crown size={16} className="text-amber-500" />
+                    <span>Administrators</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{(chat.admins || []).length}</span>
+                </button>
+                <div className="flex items-center justify-between py-3 px-3 text-sm text-foreground">
+                  <div className="flex items-center gap-2.5">
+                    <Users size={16} className="text-muted-foreground" />
+                    <span>Subscribers</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{chat.subscriberCount?.toLocaleString() || 0}</span>
+                </div>
+                {chat.bannedUsers && chat.bannedUsers.length > 0 && (
+                  <div className="flex items-center justify-between py-3 px-3 text-sm text-foreground">
+                    <div className="flex items-center gap-2.5">
+                      <AlertTriangle size={16} className="text-destructive" />
+                      <span>Banned Users</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{chat.bannedUsers.length}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Recent actions log */}
+              {chat.recentActions && chat.recentActions.length > 0 && (
+                <>
+                  <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent Actions</div>
+                  <div className="space-y-1 mb-4 max-h-[150px] overflow-y-auto">
+                    {chat.recentActions.slice(0, 10).map((a, i) => (
+                      <div key={i} className="text-[11px] text-muted-foreground py-1.5 px-2 rounded bg-muted/30">
+                        <span className="text-foreground">{a.userId}</span> {a.action}
+                        <span className="ml-1 opacity-60">{a.timestamp}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="h-px bg-border my-3" />
+
+              {/* Danger zone */}
+              <div className="text-[11px] font-semibold text-destructive/70 uppercase tracking-wider mb-2">Danger Zone</div>
+              {!showDeleteConfirm ? (
+                <button onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full py-2.5 px-3 rounded-lg text-sm text-destructive hover:bg-destructive/10 text-left transition-colors flex items-center gap-2">
+                  <Trash2 size={15} /> Delete Channel
+                </button>
+              ) : (
+                <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5">
+                  <p className="text-sm text-destructive mb-3">This action cannot be undone. All messages and subscribers will be lost.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowDeleteConfirm(false)} className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-dex-hover">Cancel</button>
+                    <button onClick={onDeleteChannel} className="px-3 py-1.5 rounded-lg text-xs bg-destructive text-destructive-foreground">Delete Forever</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
-        <div className="h-px bg-border my-3" />
-
-        {!showDeleteConfirm ? (
-          <button onClick={() => setShowDeleteConfirm(true)} className="w-full py-2.5 px-2 rounded-lg text-sm text-destructive hover:bg-destructive/10 text-left transition-colors">
-            🗑️ Delete Channel
-          </button>
-        ) : (
-          <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5">
-            <p className="text-sm text-destructive mb-3">Are you sure? This cannot be undone.</p>
-            <div className="flex gap-2">
-              <button onClick={() => setShowDeleteConfirm(false)} className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-dex-hover">Cancel</button>
-              <button onClick={onDeleteChannel} className="px-3 py-1.5 rounded-lg text-xs bg-destructive text-destructive-foreground">Delete</button>
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2 mt-5">
+        {/* Footer */}
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-dex-hover">Cancel</button>
-          <button onClick={handleSave} disabled={!name.trim()} className="px-5 py-2 rounded-lg text-sm bg-primary text-primary-foreground disabled:opacity-40">Save</button>
+          <button onClick={handleSave} disabled={!name.trim()} className="px-5 py-2 rounded-lg text-sm bg-primary text-primary-foreground disabled:opacity-40 font-medium">Save Changes</button>
         </div>
       </div>
     </div>
