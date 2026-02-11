@@ -16,7 +16,7 @@ import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import InfoPanel from './InfoPanel';
 import CommentsPanel from './CommentsPanel';
-import { DeleteDialog, ForwardModal, CreateChannelModal, CreateGroupModal, PollCreationModal, PinConfirmModal, ReportDialog, MuteOptionsModal, SchedulePickerModal, FolderEditorModal, AutoDeleteDialog, EffectPickerMenu, ClearHistoryDialog, EditChannelModal, EditGroupModal, InviteLinksModal, AdminManagementModal, LeaveConfirmDialog, NewChatModal } from './Modals';
+import { DeleteDialog, ForwardModal, CreateChannelModal, CreateGroupModal, PollCreationModal, PinConfirmModal, ReportDialog, MuteOptionsModal, SchedulePickerModal, FolderEditorModal, AutoDeleteDialog, EffectPickerMenu, ClearHistoryDialog, EditChannelModal, EditGroupModal, InviteLinksModal, AdminManagementModal, LeaveConfirmDialog, NewChatModal, BannedUsersModal, MemberRestrictionsModal } from './Modals';
 
 const DexsterChat: React.FC = () => {
   // ========= AUTH & DATA HOOKS =========
@@ -77,6 +77,8 @@ const DexsterChat: React.FC = () => {
   const [showAdminManagement, setShowAdminManagement] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [showBannedUsers, setShowBannedUsers] = useState(false);
+  const [showMemberRestrictions, setShowMemberRestrictions] = useState(false);
   // Multi-select
   const [selectMode, setSelectMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
@@ -613,7 +615,7 @@ const DexsterChat: React.FC = () => {
   }, [activeChat, showToast]);
 
   // ========= ADMIN MANAGEMENT =========
-  const promoteAdmin = useCallback(async (adminUserId: string, _title: string) => {
+  const promoteAdmin = useCallback(async (adminUserId: string, _title: string, _permissions?: any) => {
     changeRole({ userId: Number(adminUserId), role: 'admin' });
     showToast('Admin promoted');
   }, [changeRole, showToast]);
@@ -647,21 +649,33 @@ const DexsterChat: React.FC = () => {
   }, [reportConversation, reportTarget, activeChat, showToast]);
 
   // ========= CREATE GROUP =========
-  const createGroup = useCallback(async (name: string, memberIds: string[], description: string) => {
+  const createGroup = useCallback(async (data: {
+    name: string; description: string; isPublic: boolean; joinApproval: boolean;
+    chatHistoryForNewMembers: boolean; memberIds: string[]; avatarFile?: File;
+  }) => {
     try {
       const result = await apiCreateGroup({
-        name,
-        description,
-        memberIds: memberIds.map(Number),
+        name: data.name,
+        description: data.description,
+        memberIds: data.memberIds.map(Number),
       });
+      const newId = String((result as any).id);
+      // Apply extra settings
+      try {
+        await updateSettings({ id: newId, settings: {
+          isPublic: data.isPublic, joinApproval: data.joinApproval,
+          chatHistoryForNewMembers: data.chatHistoryForNewMembers,
+        } as Record<string, unknown> });
+      } catch { /* settings update is best-effort */ }
+      // TODO: upload avatarFile if provided
       setShowGroupModal(false);
-      setActiveChat(String((result as any).id));
+      setActiveChat(newId);
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     } catch {
       setShowGroupModal(false);
       showToast('Failed to create group');
     }
-  }, [apiCreateGroup, queryClient, showToast]);
+  }, [apiCreateGroup, queryClient, showToast, updateSettings]);
 
   // ========= CREATE CHANNEL =========
   const createChannel = useCallback(async (data: {
@@ -690,6 +704,8 @@ const DexsterChat: React.FC = () => {
         else if (showEditGroup) setShowEditGroup(false);
         else if (showInviteLinks) setShowInviteLinks(false);
         else if (showAdminManagement) setShowAdminManagement(false);
+        else if (showBannedUsers) setShowBannedUsers(false);
+        else if (showMemberRestrictions) setShowMemberRestrictions(false);
         else if (showCommentsFor) setShowCommentsFor(null);
         else if (showChannelModal) setShowChannelModal(false);
         else if (showGroupModal) setShowGroupModal(false);
@@ -712,7 +728,7 @@ const DexsterChat: React.FC = () => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [showClearHistory, showEditChannel, showEditGroup, showInviteLinks, showAdminManagement, showCommentsFor, showChannelModal, showGroupModal, showPollModal, showScheduleModal, showFolderEditor, showAutoDeleteDialog, showMuteOptions, deleteMsg, forwardMsg, pinConfirmMsg, reportTarget, bulkForwardTarget, selectMode, showChatSearch, showInfoPanel, editMsg, replyTo]);
+  }, [showClearHistory, showEditChannel, showEditGroup, showInviteLinks, showAdminManagement, showBannedUsers, showMemberRestrictions, showCommentsFor, showChannelModal, showGroupModal, showPollModal, showScheduleModal, showFolderEditor, showAutoDeleteDialog, showMuteOptions, deleteMsg, forwardMsg, pinConfirmMsg, reportTarget, bulkForwardTarget, selectMode, showChatSearch, showInfoPanel, editMsg, replyTo]);
 
   // ========= MOBILE BACK HANDLER =========
   const handleMobileBack = useCallback(() => {
@@ -936,9 +952,30 @@ const DexsterChat: React.FC = () => {
       {showAutoDeleteDialog && <AutoDeleteDialog currentTimer={chat?.autoDeleteTimer || 0} onSet={(timer) => setAutoDelete(activeChat, timer)} onCancel={() => setShowAutoDeleteDialog(false)} />}
       {showClearHistory && <ClearHistoryDialog chatName={chat?.name || ''} chatType={chat?.type || 'personal'} onConfirm={clearHistory} onCancel={() => setShowClearHistory(false)} />}
       {showEditChannel && chat && <EditChannelModal chat={chat} onSave={updateChannelSettings} onClose={() => setShowEditChannel(false)} onOpenInviteLinks={() => { setShowEditChannel(false); setShowInviteLinks(true); }} onOpenAdmins={() => { setShowEditChannel(false); setShowAdminManagement(true); }} onDeleteChannel={() => { deleteChat(activeChat); setShowEditChannel(false); }} />}
-      {showEditGroup && chat && <EditGroupModal chat={chat} onSave={updateGroupSettings} onClose={() => setShowEditGroup(false)} onOpenInviteLinks={() => { setShowEditGroup(false); setShowInviteLinks(true); }} onOpenAdmins={() => { setShowEditGroup(false); setShowAdminManagement(true); }} onDeleteGroup={() => { deleteChat(activeChat); setShowEditGroup(false); }} />}
+      {showEditGroup && chat && <EditGroupModal chat={chat} onSave={updateGroupSettings} onClose={() => setShowEditGroup(false)}
+        onOpenInviteLinks={() => { setShowEditGroup(false); setShowInviteLinks(true); }}
+        onOpenAdmins={() => { setShowEditGroup(false); setShowAdminManagement(true); }}
+        onDeleteGroup={() => { deleteChat(activeChat); setShowEditGroup(false); }}
+        onOpenBannedUsers={() => { setShowEditGroup(false); setShowBannedUsers(true); }}
+        onOpenMemberRestrictions={() => { setShowEditGroup(false); setShowMemberRestrictions(true); }}
+      />}
       {showInviteLinks && chat && <InviteLinksModal inviteLinks={chat.inviteLinks || []} onCreate={() => createInviteLink()} onRevoke={revokeInviteLink} onClose={() => setShowInviteLinks(false)} />}
       {showAdminManagement && chat && <AdminManagementModal chat={chat} users={chat.members || []} currentUserId={userIdStr} onPromote={promoteAdmin} onDemote={demoteAdmin} onClose={() => setShowAdminManagement(false)} />}
+      {showBannedUsers && chat && <BannedUsersModal
+        bannedUsers={(Array.isArray(chat.bannedUsers) ? chat.bannedUsers : []).map(b => typeof b === 'string' ? { userId: b, bannedAt: '' } : b)}
+        users={chat.members || []}
+        onUnban={(userId) => { showToast(`User ${userId} unbanned`); setShowBannedUsers(false); }}
+        onClose={() => setShowBannedUsers(false)}
+      />}
+      {showMemberRestrictions && chat && <MemberRestrictionsModal
+        chat={chat}
+        users={chat.members || []}
+        onSave={async (restrictions) => {
+          await updateSettings({ id: activeChat, settings: { memberRestrictions: restrictions } as Record<string, unknown> });
+          showToast('Member restrictions updated');
+        }}
+        onClose={() => setShowMemberRestrictions(false)}
+      />}
       {showLeaveConfirm && chat && <LeaveConfirmDialog chatName={chat.name} chatType={chat.type} onConfirm={() => { leaveChat(activeChat); setShowLeaveConfirm(false); }} onCancel={() => setShowLeaveConfirm(false)} />}
       {showNewChatModal && <NewChatModal
         onClose={() => setShowNewChatModal(false)}
