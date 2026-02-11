@@ -16,9 +16,10 @@ interface InfoPanelProps {
   messages: Message[];
   onManageChannel?: () => void;
   onManageGroup?: () => void;
+  isMobile?: boolean;
 }
 
-const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBlock, onUnblock, onReport, onLeave, onDelete, onSetAutoDelete, messages, onManageChannel, onManageGroup }) => {
+const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBlock, onUnblock, onReport, onLeave, onDelete, onSetAutoDelete, messages, onManageChannel, onManageGroup, isMobile }) => {
   if (!open) return null;
 
   const isChannel = chat.type === 'channel';
@@ -34,7 +35,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBl
     : 'Off';
 
   return (
-    <div className="w-[360px] h-screen flex-shrink-0 border-l border-border bg-card overflow-y-auto animate-[slideInRight_0.3s_cubic-bezier(0.25,1,0.5,1)]">
+    <div className={`${isMobile ? 'w-full h-full' : 'w-[360px] h-screen'} flex-shrink-0 ${isMobile ? '' : 'border-l border-border'} bg-card overflow-y-auto ${isMobile ? '' : 'animate-[slideInRight_0.3s_cubic-bezier(0.25,1,0.5,1)]'}`}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <span className="text-sm font-semibold text-foreground">
           {isSaved ? 'Saved Messages' : isChannel ? 'Channel Info' : isGroup ? 'Group Info' : 'Chat Info'}

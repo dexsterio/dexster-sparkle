@@ -6,6 +6,8 @@ import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { useFolders } from '@/hooks/useFolders';
 import { useQueryClient } from '@tanstack/react-query';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import InfoPanel from './InfoPanel';
@@ -17,6 +19,8 @@ const DexsterChat: React.FC = () => {
   const { currentUser } = useAuth();
   const { on, off } = useWebSocket();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  const [mobileView, setMobileView] = useState<'sidebar' | 'chat'>('sidebar');
 
   const userId = currentUser?.id || 0;
   const userIdStr = String(userId);
@@ -201,7 +205,9 @@ const DexsterChat: React.FC = () => {
     setChatSearchQuery('');
     // Mark as read via API
     markRead(id);
-  }, [activeChat, markRead]);
+    // Switch to chat view on mobile
+    if (isMobile) setMobileView('chat');
+  }, [activeChat, markRead, isMobile]);
 
   // ========= SEND MESSAGE =========
   const sendMessage = useCallback(async (text: string, options?: { silent?: boolean; effect?: MessageEffect }) => {
@@ -644,34 +650,45 @@ const DexsterChat: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [showClearHistory, showEditChannel, showEditGroup, showInviteLinks, showAdminManagement, showCommentsFor, showChannelModal, showGroupModal, showPollModal, showScheduleModal, showFolderEditor, showAutoDeleteDialog, showMuteOptions, deleteMsg, forwardMsg, pinConfirmMsg, reportTarget, bulkForwardTarget, selectMode, showChatSearch, showInfoPanel, editMsg, replyTo]);
 
+  // ========= MOBILE BACK HANDLER =========
+  const handleMobileBack = useCallback(() => {
+    setMobileView('sidebar');
+  }, []);
+
   // ========= RENDER =========
+  const showSidebar = !isMobile || mobileView === 'sidebar';
+  const showChat = !isMobile || mobileView === 'chat';
+
   return (
     <div className="flex h-screen w-full overflow-hidden font-outfit">
-      <Sidebar
-        chats={visibleChats}
-        archivedChats={archivedChats}
-        activeChat={activeChat}
-        onSelectChat={selectChat}
-        onPinChat={pinChat}
-        onMuteChat={(id) => muteChat(id)}
-        onMuteWithDuration={(id) => setShowMuteOptions(id)}
-        onDeleteChat={deleteChat}
-        onMarkRead={markReadHandler}
-        onMarkUnread={markUnread}
-        onArchiveChat={archiveChat}
-        onUnarchiveChat={unarchiveChat}
-        onBlockUser={blockUser}
-        onCreateChannel={() => setShowChannelModal(true)}
-        onCreateGroup={() => setShowGroupModal(true)}
-        onCreateFolder={() => setShowFolderEditor(true)}
-        onNewChat={() => setShowNewChatModal(true)}
-        customFolders={customFolders}
-        onMoveToFolder={moveToFolder}
-        chatDrafts={chatDrafts}
-        onClearHistory={(id) => { setActiveChat(id); setShowClearHistory(true); }}
-      />
+      {showSidebar && (
+        <Sidebar
+          chats={visibleChats}
+          archivedChats={archivedChats}
+          activeChat={activeChat}
+          onSelectChat={selectChat}
+          onPinChat={pinChat}
+          onMuteChat={(id) => muteChat(id)}
+          onMuteWithDuration={(id) => setShowMuteOptions(id)}
+          onDeleteChat={deleteChat}
+          onMarkRead={markReadHandler}
+          onMarkUnread={markUnread}
+          onArchiveChat={archiveChat}
+          onUnarchiveChat={unarchiveChat}
+          onBlockUser={blockUser}
+          onCreateChannel={() => setShowChannelModal(true)}
+          onCreateGroup={() => setShowGroupModal(true)}
+          onCreateFolder={() => setShowFolderEditor(true)}
+          onNewChat={() => setShowNewChatModal(true)}
+          customFolders={customFolders}
+          onMoveToFolder={moveToFolder}
+          chatDrafts={chatDrafts}
+          onClearHistory={(id) => { setActiveChat(id); setShowClearHistory(true); }}
+          isMobile={isMobile}
+        />
+      )}
 
-      {chat && (
+      {showChat && chat && (
         <ChatArea
           chat={chat}
           messages={chatMessages}
@@ -731,25 +748,53 @@ const DexsterChat: React.FC = () => {
           onManageGroup={() => setShowEditGroup(true)}
           onReport={() => setReportTarget(activeChat)}
           slowMode={chat?.slowMode}
+          isMobile={isMobile}
+          onBack={handleMobileBack}
         />
       )}
 
-      {chat && (
-        <InfoPanel
-          chat={chat}
-          open={showInfoPanel}
-          onClose={() => setShowInfoPanel(false)}
-          onMute={() => muteChat(activeChat)}
-          onBlock={() => blockUser(activeChat)}
-          onUnblock={() => unblockUser(activeChat)}
-          onReport={() => setReportTarget(activeChat)}
-          onLeave={() => setShowLeaveConfirm(true)}
-          onDelete={() => deleteChat(activeChat)}
-          onSetAutoDelete={() => setShowAutoDeleteDialog(true)}
-          messages={chatMessages}
-          onManageChannel={() => setShowEditChannel(true)}
-          onManageGroup={() => setShowEditGroup(true)}
-        />
+      {/* InfoPanel: Sheet on mobile, inline on desktop */}
+      {isMobile ? (
+        <Sheet open={showInfoPanel && !!chat} onOpenChange={(open) => !open && setShowInfoPanel(false)}>
+          <SheetContent side="right" className="w-full p-0 sm:max-w-full">
+            {chat && (
+              <InfoPanel
+                chat={chat}
+                open={true}
+                onClose={() => setShowInfoPanel(false)}
+                onMute={() => muteChat(activeChat)}
+                onBlock={() => blockUser(activeChat)}
+                onUnblock={() => unblockUser(activeChat)}
+                onReport={() => setReportTarget(activeChat)}
+                onLeave={() => setShowLeaveConfirm(true)}
+                onDelete={() => deleteChat(activeChat)}
+                onSetAutoDelete={() => setShowAutoDeleteDialog(true)}
+                messages={chatMessages}
+                onManageChannel={() => setShowEditChannel(true)}
+                onManageGroup={() => setShowEditGroup(true)}
+                isMobile={isMobile}
+              />
+            )}
+          </SheetContent>
+        </Sheet>
+      ) : (
+        chat && (
+          <InfoPanel
+            chat={chat}
+            open={showInfoPanel}
+            onClose={() => setShowInfoPanel(false)}
+            onMute={() => muteChat(activeChat)}
+            onBlock={() => blockUser(activeChat)}
+            onUnblock={() => unblockUser(activeChat)}
+            onReport={() => setReportTarget(activeChat)}
+            onLeave={() => setShowLeaveConfirm(true)}
+            onDelete={() => deleteChat(activeChat)}
+            onSetAutoDelete={() => setShowAutoDeleteDialog(true)}
+            messages={chatMessages}
+            onManageChannel={() => setShowEditChannel(true)}
+            onManageGroup={() => setShowEditGroup(true)}
+          />
+        )
       )}
 
       {showCommentsFor && (

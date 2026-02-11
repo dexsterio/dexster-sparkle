@@ -3,7 +3,8 @@ import { Chat, Message, MessageEffect } from '@/types/chat';
 import MessageBubble from './MessageBubble';
 import EmojiPicker from './EmojiPicker';
 import GifPicker from './GifPicker';
-import { Search, MoreVertical, ArrowDown, ArrowUp, X, Paperclip, Smile, Mic, Send, Check, Type, Clock, Sparkles, Bell, BellOff, Settings, BarChart3, Trash2, LogOut, Ban, UserPlus, Image } from 'lucide-react';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Search, MoreVertical, ArrowDown, ArrowUp, ArrowLeft, X, Paperclip, Smile, Mic, Send, Check, Type, Clock, Sparkles, Bell, BellOff, Settings, BarChart3, Trash2, LogOut, Ban, UserPlus, Image } from 'lucide-react';
 
 interface ChatAreaProps {
   chat: Chat;
@@ -66,6 +67,8 @@ interface ChatAreaProps {
   onReport: () => void;
   slowMode?: number;
   slowModeRemaining?: number;
+  isMobile?: boolean;
+  onBack?: () => void;
 }
 
 const DICE_EMOJIS = ['🎲', '🎯', '🏀', '⚽', '🎰', '🎳'];
@@ -80,7 +83,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   onCreatePoll, onRollDice, onSchedule,
   pendingEffect, onSetEffect, onToggleEffectPicker, showEffectPicker,
   onMuteChat, onClearHistory, onLeaveChat, onBlockUser, onDeleteChat, onManageChannel, onManageGroup, onReport,
-  slowMode, slowModeRemaining,
+  slowMode, slowModeRemaining, isMobile, onBack,
 }) => {
   const [inputText, setInputText] = useState('');
   const [showFormatBar, setShowFormatBar] = useState(false);
@@ -249,8 +252,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-background relative">
       {/* Chat Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border cursor-pointer hover:bg-dex-hover/50 transition-colors" onClick={onHeaderClick}>
-        <div className="relative">
+      <div className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-3 border-b border-border cursor-pointer hover:bg-dex-hover/50 transition-colors" onClick={onHeaderClick} style={isMobile ? { paddingTop: 'max(0.75rem, env(safe-area-inset-top))' } : undefined}>
+        {/* Mobile back button */}
+        {isMobile && onBack && (
+          <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="p-2 -ml-1 rounded-lg active:bg-dex-hover text-muted-foreground flex-shrink-0">
+            <ArrowLeft size={22} />
+          </button>
+        )}
+        <div className="relative flex-shrink-0">
           <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white" style={{ background: `hsl(${chat.avatarColor})` }}>
             {chat.avatar}
           </div>
@@ -282,7 +291,56 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             <button className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground" onClick={e => { e.stopPropagation(); setShowHeaderMenu(!showHeaderMenu); }}>
               <MoreVertical size={18} />
             </button>
-            {showHeaderMenu && (
+            {showHeaderMenu && isMobile ? (
+              <Sheet open={showHeaderMenu} onOpenChange={setShowHeaderMenu}>
+                <SheetContent side="bottom" className="rounded-t-2xl p-0">
+                  <div className="py-2" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+                    <button onClick={() => { onMuteChat(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-5 py-3.5 text-[15px] active:bg-dex-hover text-foreground transition-colors">
+                      {chat.muted ? <BellOff size={18} /> : <Bell size={18} />}
+                      {chat.muted ? 'Unmute' : 'Mute notifications'}
+                    </button>
+                    <button onClick={() => { onHeaderClick(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-5 py-3.5 text-[15px] active:bg-dex-hover text-foreground transition-colors">
+                      <Search size={18} />
+                      {chat.type === 'channel' ? 'View channel info' : chat.type === 'group' ? 'View group info' : 'View profile'}
+                    </button>
+                    {chat.type === 'channel' && (chat.role === 'owner' || chat.role === 'admin') && (
+                      <button onClick={() => { onManageChannel(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-5 py-3.5 text-[15px] active:bg-dex-hover text-foreground transition-colors">
+                        <Settings size={18} /> Manage Channel
+                      </button>
+                    )}
+                    {chat.type === 'group' && (chat.role === 'owner' || chat.role === 'admin') && (
+                      <button onClick={() => { onManageGroup(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-5 py-3.5 text-[15px] active:bg-dex-hover text-foreground transition-colors">
+                        <Settings size={18} /> Manage Group
+                      </button>
+                    )}
+                    {(chat.type === 'group' || chat.type === 'channel') && (
+                      <button onClick={() => { onCreatePoll(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-5 py-3.5 text-[15px] active:bg-dex-hover text-foreground transition-colors">
+                        <BarChart3 size={18} /> Create poll
+                      </button>
+                    )}
+                    <div className="h-px bg-border mx-4 my-1" />
+                    <button onClick={() => { onClearHistory(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-5 py-3.5 text-[15px] active:bg-dex-hover text-foreground transition-colors">
+                      <Trash2 size={18} /> Clear history
+                    </button>
+                    {chat.type === 'personal' && chat.id !== 'saved' && (
+                      <button onClick={() => { onBlockUser(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-5 py-3.5 text-[15px] active:bg-dex-hover text-foreground transition-colors">
+                        <Ban size={18} /> Block user
+                      </button>
+                    )}
+                    <div className="h-px bg-border mx-4 my-1" />
+                    {(chat.type === 'channel' || chat.type === 'group') ? (
+                      <button onClick={() => { onLeaveChat(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-5 py-3.5 text-[15px] active:bg-dex-hover text-destructive transition-colors">
+                        <LogOut size={18} /> Leave {chat.type === 'channel' ? 'channel' : 'group'}
+                      </button>
+                    ) : chat.id !== 'saved' && (
+                      <button onClick={() => { onDeleteChat(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-5 py-3.5 text-[15px] active:bg-dex-hover text-destructive transition-colors">
+                        <Trash2 size={18} /> Delete chat
+                      </button>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            ) : showHeaderMenu && (
               <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-xl z-50 min-w-[200px] animate-[contextIn_0.15s_ease-out] py-1">
                 {/* Mute */}
                 <button onClick={() => { onMuteChat(); setShowHeaderMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">
@@ -381,7 +439,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       )}
 
       {/* Messages */}
-      <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-2">
+      <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-2 md:px-4 py-2">
         {groupedMessages.map(group => (
           <React.Fragment key={group.date}>
             <div className="flex justify-center my-3 sticky top-0 z-10">
@@ -417,6 +475,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                   searchHighlight={searchQuery}
                   isSearchMatch={(searchResults || []).includes(msg.id)}
                   isCurrentSearchMatch={(searchResults || [])[searchIndex] === msg.id}
+                  isMobile={isMobile}
                 />
               </React.Fragment>
             ))}
@@ -427,7 +486,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* Scroll to bottom FAB — smooth transition */}
       <div
-        className={`absolute bottom-24 right-6 z-10 transition-all duration-200 ${showScrollBtn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
+        className={`absolute ${isMobile ? 'bottom-20 right-4' : 'bottom-24 right-6'} z-10 transition-all duration-200 ${showScrollBtn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
       >
         <button
           onClick={() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); setNewMsgCount(0); }}
@@ -442,13 +501,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* Select Mode Toolbar */}
       {selectMode && (
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-card border-t border-border animate-[slideUp_0.2s_ease-out]">
-          <button onClick={onExitSelect} className="p-1.5 rounded-lg hover:bg-dex-hover text-muted-foreground"><X size={16} /></button>
+        <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2.5 bg-card border-t border-border animate-[slideUp_0.2s_ease-out]" style={isMobile ? { paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom))' } : undefined}>
+          <button onClick={onExitSelect} className="p-1.5 rounded-lg hover:bg-dex-hover active:bg-dex-hover text-muted-foreground"><X size={16} /></button>
           <span className="text-sm text-foreground font-medium flex-1">{selectedMessages.size} selected</span>
-          <button onClick={onSelectAll} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground h-8">Select All</button>
-          <button onClick={onBulkCopy} disabled={selectedMessages.size === 0} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground disabled:opacity-40 h-8">📋 Copy</button>
-          <button onClick={onBulkForward} disabled={selectedMessages.size === 0} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground disabled:opacity-40 h-8">↗️ Forward</button>
-          <button onClick={onBulkDelete} disabled={selectedMessages.size === 0} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-destructive/20 hover:bg-destructive/30 text-destructive disabled:opacity-40 h-8">🗑️ Delete</button>
+          {!isMobile && <button onClick={onSelectAll} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground h-8">Select All</button>}
+          <button onClick={onBulkCopy} disabled={selectedMessages.size === 0} className="p-2 md:px-3 md:py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground disabled:opacity-40 min-h-[36px]">{isMobile ? '📋' : '📋 Copy'}</button>
+          <button onClick={onBulkForward} disabled={selectedMessages.size === 0} className="p-2 md:px-3 md:py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground disabled:opacity-40 min-h-[36px]">{isMobile ? '↗️' : '↗️ Forward'}</button>
+          <button onClick={onBulkDelete} disabled={selectedMessages.size === 0} className="p-2 md:px-3 md:py-1.5 rounded-lg text-xs font-medium bg-destructive/20 hover:bg-destructive/30 text-destructive disabled:opacity-40 min-h-[36px]">{isMobile ? '🗑️' : '🗑️ Delete'}</button>
         </div>
       )}
 
@@ -486,22 +545,50 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* Input Area */}
       {!selectMode && chat.blocked && (
-        <div className="flex items-center justify-center px-4 py-4 border-t border-border">
+        <div className="flex items-center justify-center px-4 py-4 border-t border-border" style={isMobile ? { paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' } : undefined}>
           <span className="text-sm text-muted-foreground">🚫 User is blocked. Unblock to send messages.</span>
         </div>
       )}
       {!selectMode && !chat.blocked && (
-        <div className="flex items-end gap-2 px-4 py-3 border-t border-border relative">
-          <button onClick={() => setShowFormatBar(!showFormatBar)} className="p-2 rounded-lg hover:bg-dex-hover text-muted-foreground flex-shrink-0">
-            <Type size={18} />
-          </button>
+        <div className="flex items-end gap-1.5 md:gap-2 px-2 md:px-4 py-2 md:py-3 border-t border-border relative" style={isMobile ? { paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' } : undefined}>
+          {!isMobile && (
+            <button onClick={() => setShowFormatBar(!showFormatBar)} className="p-2 rounded-lg hover:bg-dex-hover text-muted-foreground flex-shrink-0">
+              <Type size={18} />
+            </button>
+          )}
 
           {/* Attach Menu */}
           <div className="relative">
-            <button onClick={() => setShowAttachMenu(!showAttachMenu)} className="p-2 rounded-lg hover:bg-dex-hover text-muted-foreground flex-shrink-0">
+            <button onClick={() => setShowAttachMenu(!showAttachMenu)} className="p-2 rounded-lg hover:bg-dex-hover active:bg-dex-hover text-muted-foreground flex-shrink-0">
               <Paperclip size={18} />
             </button>
             {showAttachMenu && (
+              isMobile ? (
+                <Sheet open={showAttachMenu} onOpenChange={setShowAttachMenu}>
+                  <SheetContent side="bottom" className="rounded-t-2xl p-0">
+                    <div className="py-2">
+                      {[
+                        { label: '📷 Photo/Video', action: () => {} },
+                        { label: '📄 Document', action: () => {} },
+                        { label: '📊 Poll', action: () => { setShowAttachMenu(false); onCreatePoll(); } },
+                        { label: '📍 Location', action: () => {} },
+                        { label: '👤 Contact', action: () => {} },
+                      ].map(item => (
+                        <button key={item.label} onClick={() => { item.action(); setShowAttachMenu(false); }}
+                          className="flex items-center gap-3 w-full px-5 py-3.5 text-sm active:bg-dex-hover text-foreground transition-colors">{item.label}</button>
+                      ))}
+                      <div className="h-px bg-border mx-4 my-1" />
+                      <div className="px-5 py-1.5 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Roll Dice</div>
+                      <div className="flex gap-2 px-4 pb-3">
+                        {DICE_EMOJIS.map(emoji => (
+                          <button key={emoji} onClick={() => { onRollDice(emoji); setShowAttachMenu(false); }}
+                            className="text-2xl p-2 active:scale-110 transition-transform rounded-lg active:bg-dex-hover">{emoji}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              ) : (
               <div className="absolute bottom-full left-0 mb-2 bg-popover border border-border rounded-xl shadow-xl z-30 min-w-[180px] animate-[contextIn_0.15s_ease-out]">
                 {[
                   { label: '📷 Photo/Video', action: () => {} },
@@ -522,6 +609,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                   ))}
                 </div>
               </div>
+              )
             )}
           </div>
 
@@ -534,7 +622,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               <Smile size={18} />
             </button>
             {showEmojiPicker && (
-              <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmojiPicker(false)} recentEmojis={recentEmojis} />
+              <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmojiPicker(false)} recentEmojis={recentEmojis} isMobile={isMobile} />
             )}
           </div>
 
@@ -544,7 +632,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               <span className="text-xs font-bold leading-none">GIF</span>
             </button>
             {showGifPicker && (
-              <GifPicker onSelect={(url) => { onSendGif(url); setShowGifPicker(false); }} onClose={() => setShowGifPicker(false)} />
+              <GifPicker onSelect={(url) => { onSendGif(url); setShowGifPicker(false); }} onClose={() => setShowGifPicker(false)} isMobile={isMobile} />
             )}
           </div>
 

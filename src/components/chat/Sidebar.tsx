@@ -25,6 +25,7 @@ interface SidebarProps {
   onMoveToFolder: (chatId: string, folderId: string) => void;
   chatDrafts: Record<string, string>;
   onClearHistory: (id: string) => void;
+  isMobile?: boolean;
 }
 
 const DEFAULT_FOLDERS = [
@@ -38,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   chats, archivedChats, activeChat, onSelectChat, onPinChat, onMuteChat, onMuteWithDuration,
   onDeleteChat, onMarkRead, onMarkUnread, onArchiveChat, onUnarchiveChat, onBlockUser,
   onCreateChannel, onCreateGroup, onCreateFolder, onNewChat, customFolders, onMoveToFolder, chatDrafts,
-  onClearHistory,
+  onClearHistory, isMobile,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -110,7 +111,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   ] : [];
 
   return (
-    <div className="w-[340px] h-screen flex flex-col border-r border-border bg-card flex-shrink-0">
+    <div className={`${isMobile ? 'w-full' : 'w-[340px]'} h-screen flex flex-col border-r border-border bg-card flex-shrink-0`} style={isMobile ? { paddingTop: 'env(safe-area-inset-top)' } : undefined}>
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -145,13 +146,13 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       {/* Folder Tabs */}
-      <div className="flex gap-1 px-4 pb-2 overflow-x-auto scrollbar-none">
+      <div className="flex gap-1 px-4 pb-2 overflow-x-auto scrollbar-none" style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}>
         {allFolders.map(f => {
           const unread = folderUnread(f.id);
           const isActive = activeFolder === f.id;
           return (
-            <button key={f.id} onClick={() => setActiveFolder(f.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}>
+              <button key={f.id} onClick={() => setActiveFolder(f.id)}
+              className={`flex items-center gap-1.5 ${isMobile ? 'px-4 py-2 text-sm' : 'px-3 py-1.5 text-xs'} rounded-full font-medium whitespace-nowrap transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}>
               {f.label}
               {unread > 0 && (
                 <span className={`text-[10px] px-1.5 rounded-full ${isActive ? 'bg-white/30 text-white' : 'bg-primary-foreground/20'}`}>{unread}</span>
@@ -197,8 +198,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           const isActive = activeChat === chat.id;
           return (
             <React.Fragment key={chat.id}>
-              <button onClick={() => onSelectChat(chat.id)} onContextMenu={(e) => handleContextMenu(e, chat.id)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${isActive ? 'bg-primary/[0.15] border-l-[3px] border-l-primary' : 'hover:bg-dex-hover border-l-[3px] border-l-transparent'}`}>
+                <button onClick={() => onSelectChat(chat.id)} onContextMenu={(e) => handleContextMenu(e, chat.id)}
+                className={`w-full flex items-center gap-3 px-4 ${isMobile ? 'py-3.5' : 'py-2.5'} transition-colors text-left active:bg-primary/[0.1] ${isActive ? 'bg-primary/[0.15] border-l-[3px] border-l-primary' : 'hover:bg-dex-hover border-l-[3px] border-l-transparent'}`}>
                 <div className="relative flex-shrink-0">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold text-white ${isSaved ? 'bg-primary/20 text-2xl' : ''}`}
                     style={isSaved ? {} : { background: `hsl(${chat.avatarColor})` }}>
