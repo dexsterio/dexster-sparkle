@@ -1,59 +1,65 @@
 
 
-# UI Color & Readability Refinement -- True Black, Clean, Professional
+# Resizable + Collapsible Sidebar + Fix Bubble Gradient
 
 ## Overview
-Shift the entire theme to a true black base with improved text contrast, better readability on chat messages, and refined micro-details throughout. No glow effects. No flashy colors. Just clean, dark, professional.
+Two changes: (1) Make the left conversation panel collapsible to a mini-state and resizable by dragging its right edge, and (2) fix ALL remaining gradient references on own-message elements so they use a single flat color.
 
-## Color Changes (index.css)
+## 1. Fix Remaining Gradients (Flat Color)
 
-### Backgrounds -- shift to true black
-- `--background`: from `240 25% 5%` to `0 0% 3%` (near-black, #080808)
-- `--card`: from `240 25% 8%` to `0 0% 6%` (#0F0F0F)
-- `--popover`: from `240 30% 10%` to `0 0% 8%` (#141414)
-- `--dex-surface`: from `240 25% 10%` to `0 0% 7%` (#121212)
-- `--dex-hover`: from `240 10% 14%` to `0 0% 10%` (#1A1A1A)
-- `--dex-bubble-other`: from `240 20% 14%` to `0 0% 11%` (#1C1C1C)
-- `--muted`: from `240 15% 18%` to `0 0% 14%` (#242424)
-- `--input`: from `240 15% 18%` to `0 0% 13%` (#212121)
-- `--border`: from `240 10% 12%` to `0 0% 12%` (#1F1F1F)
+Several places still use `bg-gradient-to-br from-primary to-[hsl(252,60%,48%)]` which creates the dual-color effect. All will be changed to flat `bg-primary`.
 
-### Text -- higher contrast
-- `--foreground`: from `240 20% 92%` to `0 0% 93%` (#EDEDED) -- pure neutral white
-- `--muted-foreground`: from `240 10% 55%` to `0 0% 50%` (#808080) -- neutral gray, easier to read
+### Files and locations:
+- **src/components/chat/MessageBubble.tsx** line 685: Voice player own-bubble still uses gradient -- change to `bg-primary`
+- **src/components/chat/ChatArea.tsx** line 789: Send button uses gradient -- change to `bg-primary`
+- **src/components/chat/VoiceRecorder.tsx** line 120: Send button uses gradient -- change to `bg-primary`
+- **src/components/chat/MyProfilePanel.tsx** lines 59, potentially: Cover gradient `from-primary via-primary/80 to-secondary` -- change to flat `bg-primary`
+- **src/components/chat/SettingsTab.tsx** lines 169, 289: Avatar circles use `bg-gradient-to-br from-primary to-secondary` -- change to flat `bg-primary`
 
-### Primary/accent -- keep as muted steel but slightly brighter for better visibility
-- `--primary`: from `220 15% 38%` to `220 12% 42%` -- subtle steel, slightly more visible
-- `--secondary`: keep at `220 12% 48%`
+## 2. Resizable + Collapsible Sidebar
 
-### Sidebar vars -- match new blacks
-- `--sidebar-background`: match `--card`
-- `--sidebar-border`: match `--border`
+### Approach
+Use the already-installed `react-resizable-panels` library (ResizablePanelGroup, ResizablePanel, ResizableHandle) to wrap the main layout. The sidebar becomes a resizable panel with min/max width constraints and a collapsible state.
 
-## Own Message Bubble Gradient (MessageBubble.tsx)
-The own-message gradient currently references hardcoded `hsl(252,60%,48%)` (purple). Change to use `--primary` variable so it matches the muted steel theme:
-- `from-primary to-[hsl(220,15%,32%)]` -- dark steel gradient, no purple
+### Technical Details
 
-Also in dice messages: same fix for the hardcoded purple gradient.
+**DexsterChat.tsx** (main layout component):
+- Import `ResizablePanelGroup`, `ResizablePanel`, `ResizableHandle` from `@/components/ui/resizable`
+- Wrap the desktop layout (sidebar + chat + info panel) in a `ResizablePanelGroup direction="horizontal"`
+- Sidebar panel: `defaultSize={25}`, `minSize={4}` (mini ~56px), `maxSize={40}`, `collapsible`, `collapsedSize={4}`
+- Add a thin `ResizableHandle` between sidebar and chat area
+- Chat area panel: `defaultSize={75}`, `minSize={40}`
+- Add state `sidebarCollapsed` to track collapsed state
+- Pass `collapsed` prop to Sidebar so it renders mini mode (icons only)
+- Mobile layout stays unchanged (full-width, no resize)
 
-## Text Readability Improvements (MessageBubble.tsx)
-- Message text size: ensure `text-sm` (14px) is used consistently -- currently correct
-- Time stamps: keep `text-[11px]` but ensure neutral color
-- Sender names in groups: keep deterministic hue colors but increase lightness from 60% to 65% for better readability on black
-- Admin badges: ensure they read well against true black
+**Sidebar.tsx**:
+- Accept new `collapsed?: boolean` prop
+- When collapsed, render a narrow strip showing only:
+  - DexsterLogo (icon-only variant or hidden)
+  - Chat avatars without text
+  - A button to expand
+- When expanded, render normally as today
+- Hide search bar, folder tabs, and text labels when collapsed
 
-## index.html Meta Colors
-- Change `#7c5cfc` (purple) to `#080808` (true black) in `theme-color` and `msapplication-TileColor`
+### Mini-collapsed state shows:
+- Small hamburger/expand button at top
+- Chat avatars stacked vertically (no names, no last messages)
+- Online indicators still visible
+- Unread badges still visible on avatars
+- Click on avatar selects that chat
+
+### Resize handle styling:
+- Thin 1px border-like handle matching `--border` color
+- On hover: shows a subtle 3px drag indicator
+- No grip icon by default (clean look)
 
 ## Files Modified
-1. **src/index.css** -- all CSS variable values updated to true-black neutral palette
-2. **src/components/chat/MessageBubble.tsx** -- remove hardcoded purple gradient, use primary-based steel gradient; improve sender color lightness
-3. **index.html** -- meta theme-color to black
-
-## What Does NOT Change
-- DexsterLogo component -- keeps its brand turquoise + glitch effects untouched
-- Font choices (Outfit, JetBrains Mono, Orbitron) -- stay the same
-- Layout structure -- unchanged
-- Animation keyframes -- unchanged
-- Glitch CSS -- unchanged
+1. **src/components/chat/DexsterChat.tsx** -- wrap layout in ResizablePanelGroup (desktop only)
+2. **src/components/chat/Sidebar.tsx** -- add `collapsed` prop, render mini mode
+3. **src/components/chat/MessageBubble.tsx** -- fix voice player gradient to flat
+4. **src/components/chat/ChatArea.tsx** -- fix send button gradient to flat
+5. **src/components/chat/VoiceRecorder.tsx** -- fix send button gradient to flat
+6. **src/components/chat/MyProfilePanel.tsx** -- fix cover gradient to flat
+7. **src/components/chat/SettingsTab.tsx** -- fix avatar gradient to flat
 
