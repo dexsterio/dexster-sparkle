@@ -471,7 +471,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         )}
 
         {isGroup && !isOwn && (
-          <div className="text-xs font-semibold mb-0.5" style={{ color: `hsl(${chat.members?.find(m => m.id === message.senderId)?.color || '252 75% 64%'})` }}>
+          <div className="text-xs font-semibold mb-0.5" style={{ color: `hsl(${getSenderColor(message.senderId)})` }}>
             {message.senderName}
             {chat.members?.find(m => m.id === message.senderId) && message.senderId === chat.members[0]?.id && (
               <span className="ml-1 text-[10px] text-muted-foreground bg-muted/50 px-1 rounded">admin</span>
