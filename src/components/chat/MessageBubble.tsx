@@ -4,6 +4,7 @@ import { Reply } from 'lucide-react';
 import { Message, Chat } from '@/types/chat';
 import ContextMenu, { ContextMenuItem } from './ContextMenu';
 import PollMessage from './PollMessage';
+import ReactionPill from './ReactionPill';
 
 const QUICK_REACTIONS = ['👍', '❤️', '🔥', '😂', '😮', '😢', '🎉', '💯'];
 
@@ -153,7 +154,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [hovered, setHovered] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
-  const [burst, setBurst] = useState<{ emoji: string; particles: { tx: number; ty: number; rot: number; scale: number }[] } | null>(null);
+  const [initialBurst, setInitialBurst] = useState<string | null>(null);
   const [showReactedBy, setShowReactedBy] = useState<string | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -272,23 +273,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleDoubleClick = () => {
     if (selectMode) return;
     onReaction(message.id, '👍');
-    triggerBurst('👍');
-  };
-
-  const triggerBurst = (emoji: string) => {
-    const particles = Array.from({ length: 6 }, () => ({
-      tx: (Math.random() - 0.5) * 80,
-      ty: -(Math.random() * 60 + 20),
-      rot: (Math.random() - 0.5) * 60,
-      scale: 0.5 + Math.random() * 0.8,
-    }));
-    setBurst({ emoji, particles });
-    setTimeout(() => setBurst(null), 800);
+    setInitialBurst('👍');
   };
 
   const handleReaction = (emoji: string) => {
     onReaction(message.id, emoji);
-    triggerBurst(emoji);
+    setInitialBurst(emoji);
     setShowReactionPicker(false);
   };
 
@@ -391,15 +381,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {/* Reactions */}
           {message.reactions && message.reactions.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1 relative">
-              {message.reactions.map((r, i) => {
-                const isMine = r.users.includes('me');
-                return (
-                  <button key={i} onClick={() => handleReaction(r.emoji)}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-xl text-[11.5px] font-semibold transition-transform duration-150 hover:scale-110 ${isMine ? 'bg-primary/25 border border-primary/40' : 'bg-white/[0.07] border border-white/[0.08]'}`}>
-                    {r.emoji} {r.users.length}
-                  </button>
-                );
-              })}
+              {message.reactions.map((r) => (
+                <ReactionPill
+                  key={r.emoji}
+                  emoji={r.emoji}
+                  count={r.users.length}
+                  isActive={r.users.includes('me')}
+                  onReact={(emoji) => handleReaction(emoji)}
+                  triggerBurst={initialBurst === r.emoji}
+                  onBurstDone={() => setInitialBurst(null)}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -595,34 +587,25 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         {/* Reactions */}
         {message.reactions && message.reactions.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5 relative">
-            {message.reactions.map((r, i) => {
-              const isMine = r.users.includes('me');
-              return (
-                <button key={i} onClick={() => handleReaction(r.emoji)}
-                  onMouseEnter={() => setShowReactedBy(r.emoji)}
-                  onMouseLeave={() => setShowReactedBy(null)}
-                  className={`relative flex items-center gap-1 px-2 py-0.5 rounded-xl text-[11.5px] font-semibold transition-transform duration-150 hover:scale-110 ${isMine ? 'bg-primary/25 border border-primary/40' : 'bg-white/[0.07] border border-white/[0.08]'}`}>
-                  {r.emoji} {r.users.length}
-                  {/* Who reacted tooltip */}
-                  {showReactedBy === r.emoji && (
+            {message.reactions.map((r) => (
+              <ReactionPill
+                key={r.emoji}
+                emoji={r.emoji}
+                count={r.users.length}
+                isActive={r.users.includes('me')}
+                onReact={(emoji) => handleReaction(emoji)}
+                triggerBurst={initialBurst === r.emoji}
+                onBurstDone={() => setInitialBurst(null)}
+                onMouseEnter={() => setShowReactedBy(r.emoji)}
+                onMouseLeave={() => setShowReactedBy(null)}
+                tooltipContent={
+                  showReactedBy === r.emoji ? (
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 rounded-lg bg-popover border border-border shadow-lg text-[10px] text-foreground whitespace-nowrap z-20 animate-[fadeIn_0.1s_ease]">
                       {r.users.map(u => u === 'me' ? 'You' : u).join(', ')}
                     </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Burst animation */}
-        {burst && (
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            {burst.particles.map((p, i) => (
-              <span key={i} className="absolute text-lg"
-                style={{ '--tx': `${p.tx}px`, '--ty': `${p.ty}px`, animation: `reactionBurst 0.7s ease-out forwards`, animationDelay: `${i * 0.05}s` } as React.CSSProperties}>
-                {burst.emoji}
-              </span>
+                  ) : undefined
+                }
+              />
             ))}
           </div>
         )}
