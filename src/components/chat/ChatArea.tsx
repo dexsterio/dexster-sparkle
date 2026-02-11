@@ -120,6 +120,24 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const prevMsgCountRef = useRef(messages.length);
   const prevHeightRef = useRef(20);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+  // Keyboard-aware input positioning for mobile
+  useEffect(() => {
+    if (!isMobile) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      const offset = window.innerHeight - vv.height - vv.offsetTop;
+      setKeyboardOffset(Math.max(0, offset));
+    };
+    vv.addEventListener('resize', onResize);
+    vv.addEventListener('scroll', onResize);
+    return () => {
+      vv.removeEventListener('resize', onResize);
+      vv.removeEventListener('scroll', onResize);
+    };
+  }, [isMobile]);
 
   // Slow mode countdown timer
   useEffect(() => {
@@ -633,7 +651,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         </div>
       )}
       {!selectMode && !chat.blocked && requestStatus !== 'pending_sent' && requestStatus !== 'pending_received' && (
-        <div className="flex items-end gap-1.5 md:gap-2 px-2 md:px-4 py-2 md:py-3 border-t border-border relative" style={isMobile ? { paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' } : undefined}>
+        <div className="flex items-end gap-1.5 md:gap-2 px-2 md:px-4 py-2 md:py-3 border-t border-border relative chat-input-bar" style={isMobile ? { paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))', transform: keyboardOffset > 0 ? `translateY(-${keyboardOffset}px)` : undefined } : undefined}>
           {isRecordingVoice && onVoiceSend ? (
             <VoiceRecorder
               onSend={(blob, dur) => {

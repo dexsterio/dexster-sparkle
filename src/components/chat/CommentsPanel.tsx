@@ -89,7 +89,7 @@ const CommentsPanel: React.FC<CommentsPanelProps> = ({ comments, postPreview, on
       )}
 
       {/* Input */}
-      <div className="flex items-center gap-2 px-4 py-3 border-t border-border">
+      <div className="flex items-center gap-2 px-4 py-3 border-t border-border" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <input
           ref={inputRef}
           value={text}

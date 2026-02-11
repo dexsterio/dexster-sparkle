@@ -356,7 +356,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold text-white" style={{ background: `hsl(${chat.avatarColor})` }}>{chat.avatar}</div>
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-semibold text-foreground">{chat.name}</span>
-                  <p className="text-xs text-muted-foreground truncate max-w-[200px]">{chat.lastMessage}</p>
+                  <p className="text-xs text-muted-foreground truncate max-w-[60vw] md:max-w-[200px]">{chat.lastMessage}</p>
                 </div>
                 <span className="text-[11px] text-muted-foreground flex-shrink-0">{chat.lastTime}</span>
               </button>
@@ -393,7 +393,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <span className="text-[11px] text-muted-foreground flex-shrink-0">{chat.lastTime}</span>
                       </div>
                       <div className="flex items-center justify-between mt-0.5">
-                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        <p className="text-xs text-muted-foreground truncate max-w-[60vw] md:max-w-[200px]">
                           {chat.typing ? (
                             <span className="text-primary">typing...</span>
                           ) : draft ? (
