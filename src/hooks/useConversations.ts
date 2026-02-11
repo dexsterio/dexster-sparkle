@@ -38,6 +38,8 @@ interface ApiConversation {
     lastSeen: string | null;
     bio: string | null;
   };
+  // Message request status
+  requestStatus?: 'none' | 'pending_sent' | 'pending_received' | 'accepted' | 'rejected';
   // Channel-specific
   commentsEnabled?: boolean;
   reactionsEnabled?: boolean;
@@ -80,6 +82,7 @@ function mapConversation(c: ApiConversation): Chat {
     reactionsEnabled: c.reactionsEnabled,
     slowMode: c.slowMode,
     autoDeleteTimer: c.autoDeleteTimer,
+    requestStatus: c.requestStatus || 'none',
   };
 }
 
@@ -240,13 +243,42 @@ export function useConversations() {
       }),
     onSuccess: (data) => {
       const chat = mapConversation(data);
+      // New DMs to non-contacts start as pending_sent
+      if (!chat.requestStatus || chat.requestStatus === 'none') {
+        chat.requestStatus = 'pending_sent';
+      }
       queryClient.setQueryData<Chat[]>(['conversations'], old => {
-        // Avoid duplicates
         const exists = (old ?? []).find(c => c.id === chat.id);
         if (exists) return old ?? [];
         return [chat, ...(old ?? [])];
       });
     },
+  });
+
+  // ── Accept message request ──
+  const acceptRequestMutation = useMutation({
+    mutationFn: (id: string) =>
+      api.post(`/messages/conversations/${id}/accept`),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['conversations'] });
+      queryClient.setQueryData<Chat[]>(['conversations'], old =>
+        (old ?? []).map(c => c.id === id ? { ...c, requestStatus: 'accepted' as const } : c)
+      );
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+  });
+
+  // ── Reject message request ──
+  const rejectRequestMutation = useMutation({
+    mutationFn: (id: string) =>
+      api.post(`/messages/conversations/${id}/reject`),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['conversations'] });
+      queryClient.setQueryData<Chat[]>(['conversations'], old =>
+        (old ?? []).map(c => c.id === id ? { ...c, requestStatus: 'rejected' as const } : c)
+      );
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
   });
 
   // ── Stable callbacks ──
@@ -301,6 +333,16 @@ export function useConversations() {
     [createDMMutation]
   );
 
+  const acceptRequest = useCallback(
+    (id: string) => acceptRequestMutation.mutate(id),
+    [acceptRequestMutation]
+  );
+
+  const rejectRequest = useCallback(
+    (id: string) => rejectRequestMutation.mutate(id),
+    [rejectRequestMutation]
+  );
+
   return {
     conversations,
     isLoading: query.isLoading,
@@ -315,5 +357,7 @@ export function useConversations() {
     createGroup,
     createChannel,
     createDM,
+    acceptRequest,
+    rejectRequest,
   };
 }

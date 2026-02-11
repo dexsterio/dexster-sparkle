@@ -145,6 +145,7 @@ export interface Chat {
   // Organization
   archived?: boolean;
   blocked?: boolean;
+  requestStatus?: 'none' | 'pending_sent' | 'pending_received' | 'accepted' | 'rejected';
   autoDeleteTimer?: number;
   folderId?: string;
   markedUnread?: boolean;
