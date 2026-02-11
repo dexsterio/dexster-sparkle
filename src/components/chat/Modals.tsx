@@ -1000,10 +1000,11 @@ export const LeaveConfirmDialog: React.FC<LeaveConfirmDialogProps> = ({ chatName
 interface NewChatModalProps {
   onClose: () => void;
   onStartChat: (userId: number) => void;
+  onSelectRecent?: (chatId: string) => void;
   recentContacts?: { id: string; name: string; avatar: string; avatarColor: string; online?: boolean }[];
 }
 
-export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onStartChat, recentContacts }) => {
+export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onStartChat, onSelectRecent, recentContacts }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const { data: searchResults, isLoading: isSearching } = useUserSearch(searchQuery);
 
@@ -1028,7 +1029,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onStartChat
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent</p>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
               {recentContacts.map(c => (
-                <button key={c.id} onClick={() => onStartChat(Number(c.id))}
+                <button key={c.id} onClick={() => { if (onSelectRecent) { onSelectRecent(c.id); } else { onStartChat(Number(c.id)); } }}
                   className="flex flex-col items-center gap-1.5 min-w-[60px] group">
                   <div className="relative">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold text-white transition-transform group-hover:scale-105"
