@@ -217,13 +217,25 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({ onClose,
               ))}
             </div>
 
+            {isPublic && name.trim() && (
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 mb-4">
+                <div className="flex items-start gap-2">
+                  <Globe size={14} className="text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-foreground font-medium">Public link</p>
+                    <p className="text-sm text-primary font-mono mt-0.5">https://dexst.me/{name.trim().toLowerCase().replace(/\s+/g, '')}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {!isPublic && (
               <div className="p-3 rounded-lg bg-muted/50 border border-border mb-4">
                 <div className="flex items-start gap-2">
                   <Link size={14} className="text-primary mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-xs text-foreground font-medium">Invite link will be generated</p>
-                    <p className="text-[11px] text-muted-foreground">Share the link with people you want to invite after creating the channel.</p>
+                    <p className="text-xs text-foreground font-medium">Private invite link</p>
+                    <p className="text-[11px] text-muted-foreground">A unique dexst.me invite link will be generated after creating the channel.</p>
                   </div>
                 </div>
               </div>

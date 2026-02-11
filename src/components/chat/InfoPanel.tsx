@@ -81,7 +81,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBl
         )}
         {chat.username && (
           <div className="flex items-center gap-3 py-2.5 text-sm cursor-pointer hover:bg-dex-hover rounded-lg px-1 -mx-1 transition-colors"
-            onClick={() => { navigator.clipboard.writeText(`t.me/${chat.username?.replace('@', '')}`); }}>
+            onClick={() => { navigator.clipboard.writeText(`https://dexst.me/${chat.username?.replace('@', '')}`); }}>
             <span className="text-base">@</span>
             <div>
               <div className="text-foreground">{chat.username}</div>
