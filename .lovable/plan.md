@@ -1,115 +1,155 @@
 
 
-# Produktionsklar PWA -- Dexster Chat
+# Systematisk Audit: Alla Ofullstandiga Funktioner i Dexster Chat
 
-## Oversikt
+Jag har granskat varje fil i projektet och identifierat **76 funktioner** som saknar end-to-end-implementation. Nedan foljer den fullstandiga listan, grupperad i 6 kategorier, med exakt beskrivning av vad som saknas och vad som behover goras.
 
-Appen saknar idag all PWA-infrastruktur. Planen ar att bygga en fullt produktionsklar Progressive Web App med offline-stod, installationsprompt, uppdateringshantering, och alla metadata som kravs for app-stores och hemskarmsinstallation.
+---
 
-## Ny dependency
+## Kategori 1: Stub-handlers (bara toast, ingen logik) — 18 st
 
-- `vite-plugin-pwa` (devDependency) -- genererar service worker, manifest och precache automatiskt
+Dessa funktioner i `DexsterChat.tsx` visar bara ett meddelande utan att gora nagot:
 
-## Implementering
+| # | Funktion | Rad | Vad som saknas |
+|---|----------|-----|----------------|
+| 1 | `blockUser` | 367-373 | Saknar API-anrop `POST /messages/conversations/:id/block` |
+| 2 | `unblockUser` | 375-377 | Saknar API-anrop `DELETE /messages/conversations/:id/block` |
+| 3 | `bookmarkMessage` | 385-388 | Saknar localStorage/IndexedDB-lagring och laddning |
+| 4 | `translateMessage` | 391-394 | Stub — markerad som "not available" |
+| 5 | `moveToFolder` | 537-540 | Saknar API-anrop for att flytta chatt till mapp |
+| 6 | `clearHistory` | 543-548 | Rensar bara lokal cache, saknar `DELETE /messages/conversations/:id/history` |
+| 7 | `updateChannelSettings` | 551-554 | Saknar `PUT /messages/conversations/:id/settings` |
+| 8 | `updateGroupSettings` | 556-559 | Saknar `PUT /messages/conversations/:id/settings` |
+| 9 | `createInviteLink` | 562-564 | Saknar koppling till `useInviteLinks` hook |
+| 10 | `revokeInviteLink` | 566-568 | Saknar koppling till `useInviteLinks` hook |
+| 11 | `promoteAdmin` | 571-573 | Saknar koppling till `useMembers.changeRole` |
+| 12 | `demoteAdmin` | 575-577 | Saknar koppling till `useMembers.changeRole` |
+| 13 | `setAutoDelete` | 580-583 | Saknar `PUT /messages/conversations/:id/auto-delete` |
+| 14 | `handleReport` | 592-595 | Saknar `POST /messages/report` |
+| 15 | `sendGif` | 231-246 | Bara optimistisk — saknar API-anrop via `apiSendMessage` |
+| 16 | `scheduleMessage` | 462-472 | Bara optimistisk — saknar `POST /messages/e2e/schedule` |
+| 17 | `rollDice` | 433-442 | Bara optimistisk — saknar API-anrop |
+| 18 | `createPoll` | 397-410 | Bara optimistisk — saknar API-anrop |
 
-### 1. Vite-konfiguration (`vite.config.ts`)
+## Kategori 2: Okopplade hooks — 4 st
 
-Lagg till `VitePWA`-pluginen med fullstandig konfiguration:
+Dessa hooks finns och ar redo men ar inte integrerade i UI:t:
 
-- **registerType**: `"prompt"` -- visar en uppdateringsnotis nar ny version finns, istallet for att tvinga reload
-- **Manifest**:
-  - `name`: "Dexster Chat"
-  - `short_name`: "Dexster"
-  - `description`: "A modern messaging experience"
-  - `theme_color`: "#7c5cfc" (primary-fargen)
-  - `background_color`: "#0a0b14" (mork bakgrund)
-  - `display`: "standalone"
-  - `orientation`: "portrait"
-  - `start_url`: "/"
-  - `scope`: "/"
-  - `categories`: ["social", "communication"]
-  - `screenshots`: (tomma for nu, kan laggas till senare)
-  - Ikoner i storlekar: 72, 96, 128, 144, 192, 384, 512 (genererade SVG-baserade PNG-placeholders)
-  - `maskable`-ikon (512x512) for adaptiva ikoner pa Android
-- **Workbox**:
-  - `navigateFallbackDenylist`: `[/^\/~oauth/]` (kritiskt for auth-redirects)
-  - `globPatterns`: `["**/*.{js,css,html,ico,png,svg,woff2}"]`
-  - Runtime caching for Google Fonts (CacheFirst, 30 dagar)
-  - Runtime caching for bilder (CacheFirst, 7 dagar, max 50 entries)
-  - `cleanupOutdatedCaches`: true
-  - `skipWaiting`: false (vanta pa anvandardens godkannande via prompt)
+| # | Hook | Vad som saknas |
+|---|------|----------------|
+| 19 | `useMediaUpload` | Inte kopplad till attach-menyn i ChatArea |
+| 20 | `useInviteLinks` | Inte kopplad till InviteLinksModal |
+| 21 | `useMembers` | Inte kopplad till InfoPanel eller AdminManagementModal |
+| 22 | `useNotifications` | Inte kopplad till nagon UI-komponent |
 
-### 2. PWA-ikoner (`public/`)
+## Kategori 3: Tomma mobilflikar — 3 st
 
-Skapa SVG-baserade ikoner som renderar Dexster-logotypen (bokstaven "D" mot mork bakgrund med primary-fargen):
-- `public/pwa-192x192.svg` -- 192x192
-- `public/pwa-512x512.svg` -- 512x512
-- `public/pwa-maskable-512x512.svg` -- 512x512 maskable (extra padding)
-- `public/apple-touch-icon-180x180.svg` -- 180x180 for iOS
+| # | Flik | Vad som saknas |
+|---|------|----------------|
+| 23 | Contacts-flik | Placeholder — behover kontaktlista med sok, online-status |
+| 24 | Saved Messages-flik | Placeholder — behover visa bokmarkta meddelanden fran localStorage |
+| 25 | Settings-flik | Placeholder — behover profil, tema, notifikationer, integritet |
 
-(SVG-ikoner fungerar i moderna browsrar och ar vektorbaserade sa de skalar perfekt)
+## Kategori 4: Ofullstandig UI-logik — 28 st
 
-### 3. HTML-metadata (`index.html`)
+| # | Funktion | Plats | Vad som saknas |
+|---|----------|-------|----------------|
+| 26 | Attach-meny (bilder) | ChatArea.tsx | Visar meny men `onImageSelect` saknas — filval + upload-logik |
+| 27 | Attach-meny (video) | ChatArea.tsx | Saknar video-val och upload |
+| 28 | Attach-meny (dokument) | ChatArea.tsx | Saknar dokument-val och upload |
+| 29 | Typing-indikator sanding | ChatArea.tsx | `sendTyping` anropas aldrig fran textarea `onChange` |
+| 30 | Forward till API | DexsterChat.tsx | Forward ar bara optimistisk — saknar `POST /messages/forward` |
+| 31 | Slow mode timer | ChatArea.tsx | `slowModeRemaining` passas men timer-logik saknas |
+| 32 | Shared Media i InfoPanel | InfoPanel.tsx | Visar placeholder-ikoner, inte riktiga media fran API |
+| 33 | Groups in Common | InfoPanel.tsx | Hardkodad till "DevOps Hub" — behover API-data |
+| 34 | Members i InfoPanel | InfoPanel.tsx | Visar `chat.members` fran mock — behover `useMembers` |
+| 35 | Auto-delete countdown | Alla | `autoDeleteAt` pa meddelanden hanteras aldrig |
+| 36 | Message effects (confetti etc) | ChatArea/DexsterChat | Effect-picker finns men effekterna renderas aldrig |
+| 37 | Silent send indikator | MessageBubble | `silentSend` flagga visas aldrig i UI |
+| 38 | Scheduled message visning | MessageBubble | `scheduled`/`scheduledTime` visas aldrig |
+| 39 | Translated text visning | MessageBubble | `translated` falt visas aldrig |
+| 40 | Bookmark-ikon pa meddelanden | MessageBubble | `bookmarked` flagga visas aldrig |
+| 41 | Read receipts (dubbel-bock) | MessageBubble | `read`-status visas troligen men saknar dubbelcheck-logik |
+| 42 | Unread divider | ChatArea.tsx | `firstUnreadId` beraknas men "New messages"-divider renderas aldrig |
+| 43 | Copy link funktion | DexsterChat.tsx | Kopierar hardkodad `t.me/dexster/...` — bor vara dynamisk |
+| 44 | Mark unread via API | DexsterChat.tsx | Bara optimistisk — inget API-anrop |
+| 45 | Mute until visning | Sidebar.tsx | `muteUntil` sparas men visas aldrig i UI |
+| 46 | Pull-to-refresh | Sidebar.tsx | Anropar `invalidateQueries` men ger ingen visuell feedback efter |
+| 47 | Context menu "Move to folder" | Sidebar.tsx | onClick ar `() => {}` — gor ingenting |
+| 48 | Swipe-to-reply | MessageBubble.tsx | Bor finnas enligt memory men maste verifiera implementation |
+| 49 | Avatar upload (profil) | Saknas helt | Ingen profilredigering — varken avatar eller header |
+| 50 | Avatar upload (grupp/kanal) | Modals.tsx | Visar kamera-ikon men ingen upload-logik |
+| 51 | Comments panel API | CommentsPanel | Kommentarer ar helt lokala (state) — ingen API-koppling |
+| 52 | Channel subscriber count update | InfoPanel | Hardkodat fran mock |
+| 53 | Group member count update | InfoPanel | Hardkodat fran mock |
 
-Lagg till foljande i `<head>`:
+## Kategori 5: Saknade funktioner (finns i typsystemet men inte implementerade) — 13 st
 
-```text
-- <link rel="manifest" href="/manifest.webmanifest">
-- <meta name="theme-color" content="#7c5cfc">
-- <meta name="apple-mobile-web-app-capable" content="yes">
-- <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-- <meta name="apple-mobile-web-app-title" content="Dexster">
-- <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.svg">
-- <meta name="msapplication-TileColor" content="#7c5cfc">
-- <meta name="application-name" content="Dexster Chat">
-```
+| # | Funktion | Beskrivning |
+|---|----------|-------------|
+| 54 | Voice messages | Mic-knapp finns i UI men gor ingenting |
+| 55 | Image/video preview i chatt | Inga media renderas i MessageBubble |
+| 56 | File attachment visning | Filer visas aldrig i MessageBubble |
+| 57 | Message search (global) | Sidebar-sok soker bara pa chattnamn, inte meddelanden |
+| 58 | User profile view | Klick pa anvandare oppnar aldrig en profilvy |
+| 59 | Edit profile | Ingen redigeringssida for egen profil |
+| 60 | Theme switcher | Ingen temavaljare (dark/light) |
+| 61 | Notification settings | Ingen UI for notifikationspreferenser |
+| 62 | Privacy settings | Ingen UI for integritetsinstallningar |
+| 63 | Language settings | Ingen UI for sprakval |
+| 64 | Message pagination | Bara 100 meddelanden laddas — ingen infinite scroll |
+| 65 | Online presence updates | Presence hanteraas av WS men UI uppdateras inte i realtid |
+| 66 | Read receipt sending | `markRead` anropas vid chatval men inte vid scroll |
 
-### 4. SW-registrering och uppdateringsprompt (`src/main.tsx`)
+## Kategori 6: Saknade E2E-floden — 10 st
 
-- Importera `registerSW` fran `virtual:pwa-register`
-- Registrera service workern med `onNeedRefresh`-callback
-- Nar ny version finns: visa en toast (via sonner) med "Ny version tillganglig -- Uppdatera" knapp
-- Nar anvandaren klickar: anropa `updateSW(true)` for att aktivera nya versionen
+| # | Funktion | Beskrivning |
+|---|----------|-------------|
+| 67 | Signal Protocol integration | signalManager importeras aldrig — alla meddelanden skickas i klartext |
+| 68 | Key exchange | Ingen nyckelutbytes-logik vid ny konversation |
+| 69 | Message decryption | Encrypted content visas ratt — ingen dekryptering sker |
+| 70 | Media encryption | `uploadEncryptedMedia` anropas aldrig |
+| 71 | Session management | SIWS (Sign In With Solana) flode saknas — mock user hardkodad |
+| 72 | Wallet connect | Wallet adapter importeras men anvands aldrig |
+| 73 | Login/logout flow | `AuthContext` ar mock — inget riktigt login-flode |
+| 74 | CSRF token refresh | `getCsrfToken()` finns men token hamtas aldrig initialt |
+| 75 | WebSocket authentication | WS-anslutning anvander `mock-token` |
+| 76 | Conversation settings sync | Installningar fran EditChannel/EditGroup sparas aldrig till API |
 
-### 5. Offline-fallback-komponent (`src/components/OfflineIndicator.tsx`)
+---
 
-Ny komponent som:
-- Lyssnar pa `navigator.onLine` och `online`/`offline`-events
-- Visar en tydlig banner hogst upp i appen nar anslutningen tapps: "Du ar offline -- meddelanden synkas nar du ar online igen"
-- Bannen forsvinner med fade-animation nar anslutningen aterupprattas
+## Implementeringsplan
 
-### 6. Integration i `App.tsx`
+Jag foreslaar att vi implementerar detta i **5 faser**, fran mest kritiskt till minst:
 
-- Lagg till `<OfflineIndicator />` komponenten i app-layouten (ovanfor Routes)
+### Fas 1: Stub-handlers till riktiga API-anrop (Kategori 1)
+Koppla alla 18 stub-funktioner till API:et. Detta ar snabbast att fixa och gor storst skillnad for anvandaren.
 
-### 7. TypeScript-typer (`src/vite-env.d.ts`)
+**Filer som andras:** `DexsterChat.tsx`, `useConversations.ts`
 
-- Lagg till `/// <reference types="vite-plugin-pwa/client" />` for att typa `virtual:pwa-register`
+### Fas 2: Koppla befintliga hooks till UI (Kategori 2 + 4)
+Integrera `useMediaUpload`, `useInviteLinks`, `useMembers`, `useNotifications` i sina respektive UI-komponenter. Fixa attach-menyn, InfoPanel-medlemmar, invite links-modalen etc.
 
-## Filer som andras/skapas
+**Filer som andras:** `ChatArea.tsx`, `InfoPanel.tsx`, `Modals.tsx`, `DexsterChat.tsx`
 
-| Fil | Typ |
-|-----|-----|
-| `vite.config.ts` | Redigera -- lagg till VitePWA plugin |
-| `package.json` | Redigera -- lagg till vite-plugin-pwa |
-| `index.html` | Redigera -- PWA meta-taggar |
-| `src/main.tsx` | Redigera -- SW-registrering + uppdateringsprompt |
-| `src/vite-env.d.ts` | Redigera -- PWA-typer |
-| `src/components/OfflineIndicator.tsx` | Ny -- offline-banner |
-| `src/App.tsx` | Redigera -- lagg till OfflineIndicator |
-| `public/pwa-192x192.svg` | Ny -- app-ikon |
-| `public/pwa-512x512.svg` | Ny -- app-ikon |
-| `public/pwa-maskable-512x512.svg` | Ny -- maskable ikon |
-| `public/apple-touch-icon-180x180.svg` | Ny -- iOS-ikon |
+### Fas 3: Saknad UI-logik (resten av Kategori 4)
+Implementera typing-indikator-sanding, slow mode timer, message effects, read receipts, unread divider, bookmark-lagring, shared media etc.
 
-## Vad detta ger anvandaren
+**Filer som andras:** `ChatArea.tsx`, `MessageBubble.tsx`, `InfoPanel.tsx`, `Sidebar.tsx`
 
-- Appen kan installeras fran browsern till hemskarm (Android + iOS)
-- Startar i standalone-lage utan adressfalt
-- Fungerar offline med cachade resurser
-- Visar tydlig offline-indikator
-- Smidiga uppdateringar med prompt istallet for hard reload
-- Korrekt tema-farg i adressfalt och splash screen
-- Adaptiva ikoner pa Android (maskable)
-- Apple-specifik hemskarmsikon och statusbar-styling
+### Fas 4: Mobilflikar (Kategori 3)
+Bygg ut Contacts med kontaktlista + sok, Saved Messages med bokmärken, Settings med profil/tema/notifikationer.
+
+**Filer som andras:** `Sidebar.tsx` (eller nya komponenter)
+
+### Fas 5: Saknade funktioner och E2E (Kategori 5 + 6)
+Voice messages, media rendering, Signal Protocol, wallet auth, profil-redigering etc. Dessa kräver mest arbete och har externt beroende.
+
+**Filer som andras:** Manga filer + nya komponenter
+
+---
+
+## Rekommendation
+
+Jag rekommenderar att vi borjar med **Fas 1** (18 stubs till API-anrop) da det ar den snabbaste vagen att gora appen funktionell. Sedan gar vi vidare fas for fas. Varje fas kan implementeras i ett eller tva meddelanden.
 
