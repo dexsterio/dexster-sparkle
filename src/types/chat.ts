@@ -90,6 +90,7 @@ export interface AdminPermissions {
   manageVideoChats: boolean;
   stayAnonymous: boolean;
   addAdmins: boolean;
+  manageTopics: boolean;
 }
 
 export interface AdminEntry {
@@ -112,9 +113,25 @@ export interface GroupPermissions {
   sendMedia: boolean;
   sendStickers: boolean;
   sendPolls: boolean;
+  sendLinks: boolean;
+  sendFiles: boolean;
   addMembers: boolean;
   pinMessages: boolean;
   changeInfo: boolean;
+  createTopics: boolean;
+}
+
+export interface MemberRestriction {
+  userId: string;
+  restrictions: Partial<GroupPermissions>;
+  until?: number; // timestamp, undefined = forever
+}
+
+export interface BannedUserEntry {
+  userId: string;
+  reason?: string;
+  bannedAt: string;
+  until?: number; // timestamp, undefined = permanent
 }
 
 export interface Chat {
@@ -162,12 +179,15 @@ export interface Chat {
   inviteLinks?: InviteLink[];
   admins?: AdminEntry[];
   removedUsers?: string[];
-  bannedUsers?: string[];
+  bannedUsers?: string[] | BannedUserEntry[];
   recentActions?: { action: string; userId: string; timestamp: string }[];
   // Group-specific
   permissions?: GroupPermissions;
   slowMode?: number;
   chatHistoryForNewMembers?: boolean;
+  antiSpam?: boolean;
+  memberRestrictions?: MemberRestriction[];
+  restrictSavingContent?: boolean;
   // Channel extras
   restrictedContent?: boolean;
   joinToSend?: boolean;
