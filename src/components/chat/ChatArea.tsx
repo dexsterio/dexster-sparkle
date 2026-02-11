@@ -56,7 +56,6 @@ interface ChatAreaProps {
   onSetEffect: (effect: MessageEffect | null) => void;
   onToggleEffectPicker: () => void;
   showEffectPicker: boolean;
-  // New props for header menu actions
   onMuteChat: () => void;
   onClearHistory: () => void;
   onLeaveChat: () => void;
@@ -69,17 +68,17 @@ interface ChatAreaProps {
   slowModeRemaining?: number;
   isMobile?: boolean;
   onBack?: () => void;
-  // Message request
   requestStatus?: 'none' | 'pending_sent' | 'pending_received' | 'accepted' | 'rejected';
   onAcceptRequest?: () => void;
   onRejectRequest?: () => void;
   requestRecipientName?: string;
-  // Media upload
   onImageSelect?: (file: File) => void;
   onVideoSelect?: (file: File) => void;
   onFileSelect?: (file: File) => void;
   isUploading?: boolean;
   uploadProgress?: number;
+  onSendTyping?: () => void;
+  activeEffect?: { effect: MessageEffect; id: string } | null;
 }
 
 const DICE_EMOJIS = ['🎲', '🎯', '🏀', '⚽', '🎰', '🎳'];
@@ -97,6 +96,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   slowMode, slowModeRemaining, isMobile, onBack,
   requestStatus, onAcceptRequest, onRejectRequest, requestRecipientName,
   onImageSelect, onVideoSelect, onFileSelect, isUploading, uploadProgress,
+  onSendTyping, activeEffect,
 }) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -109,12 +109,34 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [newMsgCount, setNewMsgCount] = useState(0);
+  const [slowModeCountdown, setSlowModeCountdown] = useState(0);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const prevMsgCountRef = useRef(messages.length);
   const prevHeightRef = useRef(20);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Slow mode countdown timer
+  useEffect(() => {
+    if (!slowMode || slowMode <= 0) return;
+    // Start countdown after sending
+    if (slowModeRemaining && slowModeRemaining > 0) {
+      setSlowModeCountdown(slowModeRemaining);
+    }
+  }, [slowModeRemaining, slowMode]);
+
+  useEffect(() => {
+    if (slowModeCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setSlowModeCountdown(prev => {
+        if (prev <= 1) { clearInterval(timer); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [slowModeCountdown > 0]);
 
   // Restore draft
   useEffect(() => {
@@ -163,14 +185,27 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
   const handleSend = (silent?: boolean) => {
     const text = inputText.trim();
-    if (!text) return;
+    if (!text || slowModeCountdown > 0) return;
     if (editMsg) {
       onSaveEdit(text);
     } else {
       onSendMessage(text, { silent, effect: pendingEffect || undefined });
+      // Start slow mode countdown after sending
+      if (slowMode && slowMode > 0) setSlowModeCountdown(slowMode);
     }
     setInputText('');
     onSetEffect(null);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputText(e.target.value);
+    // Send typing indicator (debounced)
+    if (onSendTyping) {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        onSendTyping();
+      }, 300);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -655,9 +690,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
 
           <div className="flex-1 flex items-end bg-muted rounded-[20px] px-3 py-1.5 relative border border-border/50">
-            <textarea ref={textareaRef} value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={handleKeyDown}
-              placeholder={chat.type === 'channel' ? 'Broadcast a message...' : 'Message...'} rows={1}
-              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none leading-5"
+            <textarea ref={textareaRef} value={inputText} onChange={handleInputChange} onKeyDown={handleKeyDown}
+              placeholder={slowModeCountdown > 0 ? `Slow mode: ${slowModeCountdown}s` : chat.type === 'channel' ? 'Broadcast a message...' : 'Message...'} rows={1}
+              disabled={slowModeCountdown > 0}
+              className={`flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none leading-5 ${slowModeCountdown > 0 ? 'opacity-50' : ''}`}
               style={{ minHeight: '20px', maxHeight: '120px' }} />
             <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-1 text-muted-foreground hover:text-foreground ml-1 flex-shrink-0 transition-colors">
               <Smile size={18} />
@@ -722,8 +758,16 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             </div>
           )}
 
+          {/* Slow mode indicator */}
+          {slowModeCountdown > 0 && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground px-2 py-1 rounded-full bg-muted border border-border/50 flex-shrink-0">
+              <Clock size={12} /> {slowModeCountdown}s
+            </div>
+          )}
+
           <button onClick={() => handleSend()}
-            className={`p-2.5 rounded-full flex-shrink-0 transition-all duration-200 ease-out ${inputText.trim() ? 'bg-gradient-to-br from-primary to-[hsl(252,60%,48%)] text-primary-foreground scale-100' : 'text-muted-foreground scale-95'}`}>
+            disabled={slowModeCountdown > 0}
+            className={`p-2.5 rounded-full flex-shrink-0 transition-all duration-200 ease-out ${inputText.trim() && slowModeCountdown <= 0 ? 'bg-gradient-to-br from-primary to-[hsl(252,60%,48%)] text-primary-foreground scale-100' : 'text-muted-foreground scale-95'} ${slowModeCountdown > 0 ? 'opacity-40' : ''}`}>
             {editMsg ? <Check size={18} /> : inputText.trim() ? <Send size={18} /> : <Mic size={18} />}
           </button>
 
@@ -732,6 +776,51 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               {pendingEffect === 'confetti' ? '🎊' : pendingEffect === 'fireworks' ? '🎆' : '❤️'} {pendingEffect}
               <button onClick={() => onSetEffect(null)} className="ml-0.5 hover:text-destructive">✕</button>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Message Effect Overlay */}
+      {activeEffect && (
+        <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
+          {activeEffect.effect === 'confetti' && (
+            Array.from({ length: 40 }).map((_, i) => (
+              <div key={i} className="absolute text-lg"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: '-20px',
+                  animation: `confettiFall ${1.5 + Math.random() * 2}s ease-in forwards`,
+                  animationDelay: `${Math.random() * 0.5}s`,
+                }}>
+                {['🎊', '🎉', '✨', '🥳', '🎈'][Math.floor(Math.random() * 5)]}
+              </div>
+            ))
+          )}
+          {activeEffect.effect === 'fireworks' && (
+            Array.from({ length: 20 }).map((_, i) => (
+              <div key={i} className="absolute text-xl"
+                style={{
+                  left: `${20 + Math.random() * 60}%`,
+                  bottom: `${20 + Math.random() * 60}%`,
+                  animation: `fireworkBurst 1.5s ease-out forwards`,
+                  animationDelay: `${Math.random() * 0.8}s`,
+                }}>
+                {['🎆', '✨', '💫', '⭐'][Math.floor(Math.random() * 4)]}
+              </div>
+            ))
+          )}
+          {activeEffect.effect === 'hearts' && (
+            Array.from({ length: 25 }).map((_, i) => (
+              <div key={i} className="absolute text-2xl"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  bottom: '-30px',
+                  animation: `heartFloat ${2 + Math.random() * 2}s ease-out forwards`,
+                  animationDelay: `${Math.random() * 0.6}s`,
+                }}>
+                {['❤️', '💕', '💖', '💗', '💓'][Math.floor(Math.random() * 5)]}
+              </div>
+            ))
           )}
         </div>
       )}
