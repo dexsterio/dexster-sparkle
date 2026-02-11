@@ -237,7 +237,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   if (message.type === 'dice' && message.diceResult) {
     return (
       <div id={`msg-${message.id}`} className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'} mb-1 animate-[msgIn_0.2s_ease-out]`}>
-        <div className={`px-4 py-3 rounded-2xl ${message.isOwn ? 'bg-gradient-to-br from-primary to-[hsl(220,15%,32%)]' : 'bg-dex-bubble-other'}`}>
+        <div className={`px-4 py-3 rounded-2xl ${message.isOwn ? 'bg-primary' : 'bg-dex-bubble-other'}`}>
           <div className="text-4xl text-center animate-[diceRoll_0.5s_ease-out]">{message.diceResult.emoji}</div>
           <div className="text-center text-2xl font-bold mt-1">{message.diceResult.value}</div>
           <div className={`text-[11px] text-center mt-1 ${message.isOwn ? 'text-white/55' : 'text-muted-foreground'}`}>{message.time}</div>
@@ -448,7 +448,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       )}
 
       <div
-        className={`relative px-3 py-2 ${isChannel ? 'w-full max-w-full rounded-xl bg-dex-bubble-other py-4' : isOwn ? `${isMobile ? 'max-w-[85vw]' : 'max-w-[480px]'} rounded-[18px_18px_4px_18px] bg-gradient-to-br from-primary to-[hsl(220,15%,32%)]` : `${isMobile ? 'max-w-[85vw]' : 'max-w-[480px]'} rounded-[18px_18px_18px_4px] bg-dex-bubble-other`} ${message.pinned ? `border ${isOwn ? 'border-white/20' : 'border-primary/30'}` : ''} ${isSelected ? 'ring-2 ring-primary/50' : ''}`}
+        className={`relative px-3 py-2 ${isChannel ? 'w-full max-w-full rounded-xl bg-dex-bubble-other py-4' : isOwn ? `${isMobile ? 'max-w-[85vw]' : 'max-w-[480px]'} rounded-[18px_18px_4px_18px] bg-primary` : `${isMobile ? 'max-w-[85vw]' : 'max-w-[480px]'} rounded-[18px_18px_18px_4px] bg-dex-bubble-other`} ${message.pinned ? `border ${isOwn ? 'border-white/20' : 'border-primary/30'}` : ''} ${isSelected ? 'ring-2 ring-primary/50' : ''}`}
       >
         {/* Scheduled indicator */}
         {message.scheduled && (
