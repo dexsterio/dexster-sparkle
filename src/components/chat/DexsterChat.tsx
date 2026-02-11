@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Chat, Message, Comment, CustomFolder, MessageEffect } from '@/types/chat';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { useConversations } from '@/hooks/useConversations';
@@ -25,6 +26,7 @@ const DexsterChat: React.FC = () => {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [mobileView, setMobileView] = useState<'sidebar' | 'chat'>('sidebar');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const userId = currentUser?.id || 0;
   const userIdStr = String(userId);
@@ -768,192 +770,354 @@ const DexsterChat: React.FC = () => {
 
   return (
     <div className="flex h-screen w-full overflow-hidden font-outfit">
-      {showSidebar && (
-        <Sidebar
-          chats={visibleChats}
-          archivedChats={archivedChats}
-          activeChat={activeChat}
-          onSelectChat={selectChat}
-          onPinChat={pinChat}
-          onMuteChat={(id) => muteChat(id)}
-          onMuteWithDuration={(id) => setShowMuteOptions(id)}
-          onDeleteChat={deleteChat}
-          onMarkRead={markReadHandler}
-          onMarkUnread={markUnread}
-          onArchiveChat={archiveChat}
-          onUnarchiveChat={unarchiveChat}
-          onBlockUser={blockUser}
-          onCreateChannel={() => setShowChannelModal(true)}
-          onCreateGroup={() => setShowGroupModal(true)}
-          onCreateFolder={() => setShowFolderEditor(true)}
-          onNewChat={() => setShowNewChatModal(true)}
-          customFolders={customFolders}
-          onMoveToFolder={moveToFolder}
-          chatDrafts={chatDrafts}
-          onClearHistory={(id) => { setActiveChat(id); setShowClearHistory(true); }}
-          isMobile={isMobile}
-          onRefresh={() => {
-            queryClient.invalidateQueries({ queryKey: ['conversations'] });
-            showToast('Chats refreshed');
-          }}
-        />
-      )}
-
-      {showChat && chat && (
-        <ChatArea
-          chat={chat}
-          messages={chatMessages}
-          onSendMessage={sendMessage}
-          onSendGif={sendGif}
-          onReply={setReplyTo}
-          onEdit={setEditMsg}
-          onDelete={setDeleteMsg}
-          onForward={setForwardMsg}
-          onPin={handlePin}
-          onReaction={handleReaction}
-          onBookmark={bookmarkMessage}
-          onTranslate={translateMessage}
-          onCopyLink={copyMessageLink}
-          onSelect={(msgId) => { setSelectMode(true); toggleSelectMessage(msgId); }}
-          onVotePoll={votePoll}
-          onOpenComments={setShowCommentsFor}
-          replyTo={replyTo}
-          editMsg={editMsg}
-          onCancelReply={() => setReplyTo(null)}
-          onCancelEdit={() => setEditMsg(null)}
-          onSaveEdit={saveEdit}
-          onHeaderClick={() => setShowInfoPanel(!showInfoPanel)}
-          typingUsers={typingUsers[activeChat] || []}
-          selectMode={selectMode}
-          selectedMessages={selectedMessages}
-          onToggleSelect={toggleSelectMessage}
-          onSelectAll={selectAll}
-          onExitSelect={() => { setSelectMode(false); setSelectedMessages(new Set()); }}
-          onBulkDelete={bulkDelete}
-          onBulkForward={() => setBulkForwardTarget(true)}
-          onBulkCopy={bulkCopy}
-          showSearch={showChatSearch}
-          onToggleSearch={() => { setShowChatSearch(!showChatSearch); setChatSearchQuery(''); setChatSearchIndex(0); }}
-          searchQuery={chatSearchQuery}
-          onSearchChange={(q) => { setChatSearchQuery(q); setChatSearchIndex(0); }}
-          searchResults={searchResults}
-          searchIndex={chatSearchIndex}
-          onNavigateSearch={navigateSearch}
-          recentEmojis={recentEmojis}
-          pinnedIndex={pinnedIndex[activeChat] || 0}
-          onCyclePinned={cyclePinnedMessage}
-          draft={chatDrafts[activeChat]}
-          onCreatePoll={() => setShowPollModal(true)}
-          onRollDice={rollDice}
-          onSchedule={(text) => { setScheduledText(text); setShowScheduleModal(true); }}
-          pendingEffect={pendingEffect}
-          onSetEffect={setPendingEffect}
-          onToggleEffectPicker={() => setEffectPicker(!effectPicker)}
-          showEffectPicker={effectPicker}
-          onMuteChat={() => muteChat(activeChat)}
-          onClearHistory={() => setShowClearHistory(true)}
-          onLeaveChat={() => setShowLeaveConfirm(true)}
-          onBlockUser={() => blockUser(activeChat)}
-          onDeleteChat={() => deleteChat(activeChat)}
-          onManageChannel={() => setShowEditChannel(true)}
-          onManageGroup={() => setShowEditGroup(true)}
-          onReport={() => setReportTarget(activeChat)}
-          slowMode={chat?.slowMode}
-          isMobile={isMobile}
-          onBack={handleMobileBack}
-          requestStatus={chat?.requestStatus}
-          onAcceptRequest={() => { acceptRequest(activeChat); showToast('Förfrågan godkänd'); }}
-          onRejectRequest={() => { rejectRequest(activeChat); showToast('Förfrågan nekad'); }}
-          requestRecipientName={chat?.name}
-          onImageSelect={async (file) => {
-            try {
-              const result = await uploadImage(file);
-              await apiSendMessage({ encryptedContent: result.url, clientMsgId: crypto.randomUUID(), type: 'image' as any });
-            } catch { showToast('Failed to upload image'); }
-          }}
-          onVideoSelect={async (file) => {
-            try {
-              const result = await uploadVideo(file);
-              await apiSendMessage({ encryptedContent: result.url, clientMsgId: crypto.randomUUID(), type: 'video' as any });
-            } catch { showToast('Failed to upload video'); }
-          }}
-          onFileSelect={async (file) => {
-            try {
-              const result = await uploadFile(file);
-              await apiSendMessage({ encryptedContent: `[${file.name}](${result.url})`, clientMsgId: crypto.randomUUID() });
-            } catch { showToast('Failed to upload file'); }
-          }}
-          isUploading={isUploading}
-          uploadProgress={uploadProgress}
-          onSendTyping={() => sendTyping()}
-          activeEffect={activeEffect}
-          onVoiceSend={async (blob, duration) => {
-            try {
-              const result = await uploadFile(new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' }));
-              await apiSendMessage({ encryptedContent: result.url, clientMsgId: crypto.randomUUID(), type: 'voice' as any });
-            } catch {
-              // Fallback: use blob URL for local preview
-              const blobUrl = URL.createObjectURL(blob);
-              addOptimisticMessage({
-                id: `voice_${Date.now()}`,
-                chatId: activeChat,
-                senderId: userIdStr,
-                senderName: userName,
-                text: blobUrl,
-                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-                date: new Date().toISOString().split('T')[0],
-                isOwn: true,
-                read: false,
-                type: 'voice' as any,
-                reactions: [],
-              });
-            }
-          }}
-        />
-      )}
-
-      {/* InfoPanel: Sheet on mobile, inline on desktop */}
       {isMobile ? (
-        <Sheet open={showInfoPanel && !!chat} onOpenChange={(open) => !open && setShowInfoPanel(false)}>
-          <SheetContent side="right" className="w-full p-0 sm:max-w-full">
-            {chat && (
-              <InfoPanel
-                chat={chat}
-                open={true}
-                onClose={() => setShowInfoPanel(false)}
-                onMute={() => muteChat(activeChat)}
-                onBlock={() => blockUser(activeChat)}
-                onUnblock={() => unblockUser(activeChat)}
-                onReport={() => setReportTarget(activeChat)}
-                onLeave={() => setShowLeaveConfirm(true)}
-                onDelete={() => deleteChat(activeChat)}
-                onSetAutoDelete={() => setShowAutoDeleteDialog(true)}
-                messages={chatMessages}
-                onManageChannel={() => setShowEditChannel(true)}
-                onManageGroup={() => setShowEditGroup(true)}
-                isMobile={isMobile}
-              />
-            )}
-          </SheetContent>
-        </Sheet>
+        <>
+          {showSidebar && (
+            <Sidebar
+              chats={visibleChats}
+              archivedChats={archivedChats}
+              activeChat={activeChat}
+              onSelectChat={selectChat}
+              onPinChat={pinChat}
+              onMuteChat={(id) => muteChat(id)}
+              onMuteWithDuration={(id) => setShowMuteOptions(id)}
+              onDeleteChat={deleteChat}
+              onMarkRead={markReadHandler}
+              onMarkUnread={markUnread}
+              onArchiveChat={archiveChat}
+              onUnarchiveChat={unarchiveChat}
+              onBlockUser={blockUser}
+              onCreateChannel={() => setShowChannelModal(true)}
+              onCreateGroup={() => setShowGroupModal(true)}
+              onCreateFolder={() => setShowFolderEditor(true)}
+              onNewChat={() => setShowNewChatModal(true)}
+              customFolders={customFolders}
+              onMoveToFolder={moveToFolder}
+              chatDrafts={chatDrafts}
+              onClearHistory={(id) => { setActiveChat(id); setShowClearHistory(true); }}
+              isMobile={isMobile}
+              onRefresh={() => {
+                queryClient.invalidateQueries({ queryKey: ['conversations'] });
+                showToast('Chats refreshed');
+              }}
+            />
+          )}
+
+          {showChat && chat && (
+            <ChatArea
+              chat={chat}
+              messages={chatMessages}
+              onSendMessage={sendMessage}
+              onSendGif={sendGif}
+              onReply={setReplyTo}
+              onEdit={setEditMsg}
+              onDelete={setDeleteMsg}
+              onForward={setForwardMsg}
+              onPin={handlePin}
+              onReaction={handleReaction}
+              onBookmark={bookmarkMessage}
+              onTranslate={translateMessage}
+              onCopyLink={copyMessageLink}
+              onSelect={(msgId) => { setSelectMode(true); toggleSelectMessage(msgId); }}
+              onVotePoll={votePoll}
+              onOpenComments={setShowCommentsFor}
+              replyTo={replyTo}
+              editMsg={editMsg}
+              onCancelReply={() => setReplyTo(null)}
+              onCancelEdit={() => setEditMsg(null)}
+              onSaveEdit={saveEdit}
+              onHeaderClick={() => setShowInfoPanel(!showInfoPanel)}
+              typingUsers={typingUsers[activeChat] || []}
+              selectMode={selectMode}
+              selectedMessages={selectedMessages}
+              onToggleSelect={toggleSelectMessage}
+              onSelectAll={selectAll}
+              onExitSelect={() => { setSelectMode(false); setSelectedMessages(new Set()); }}
+              onBulkDelete={bulkDelete}
+              onBulkForward={() => setBulkForwardTarget(true)}
+              onBulkCopy={bulkCopy}
+              showSearch={showChatSearch}
+              onToggleSearch={() => { setShowChatSearch(!showChatSearch); setChatSearchQuery(''); setChatSearchIndex(0); }}
+              searchQuery={chatSearchQuery}
+              onSearchChange={(q) => { setChatSearchQuery(q); setChatSearchIndex(0); }}
+              searchResults={searchResults}
+              searchIndex={chatSearchIndex}
+              onNavigateSearch={navigateSearch}
+              recentEmojis={recentEmojis}
+              pinnedIndex={pinnedIndex[activeChat] || 0}
+              onCyclePinned={cyclePinnedMessage}
+              draft={chatDrafts[activeChat]}
+              onCreatePoll={() => setShowPollModal(true)}
+              onRollDice={rollDice}
+              onSchedule={(text) => { setScheduledText(text); setShowScheduleModal(true); }}
+              pendingEffect={pendingEffect}
+              onSetEffect={setPendingEffect}
+              onToggleEffectPicker={() => setEffectPicker(!effectPicker)}
+              showEffectPicker={effectPicker}
+              onMuteChat={() => muteChat(activeChat)}
+              onClearHistory={() => setShowClearHistory(true)}
+              onLeaveChat={() => setShowLeaveConfirm(true)}
+              onBlockUser={() => blockUser(activeChat)}
+              onDeleteChat={() => deleteChat(activeChat)}
+              onManageChannel={() => setShowEditChannel(true)}
+              onManageGroup={() => setShowEditGroup(true)}
+              onReport={() => setReportTarget(activeChat)}
+              slowMode={chat?.slowMode}
+              isMobile={isMobile}
+              onBack={handleMobileBack}
+              requestStatus={chat?.requestStatus}
+              onAcceptRequest={() => { acceptRequest(activeChat); showToast('Förfrågan godkänd'); }}
+              onRejectRequest={() => { rejectRequest(activeChat); showToast('Förfrågan nekad'); }}
+              requestRecipientName={chat?.name}
+              onImageSelect={async (file) => {
+                try {
+                  const result = await uploadImage(file);
+                  await apiSendMessage({ encryptedContent: result.url, clientMsgId: crypto.randomUUID(), type: 'image' as any });
+                } catch { showToast('Failed to upload image'); }
+              }}
+              onVideoSelect={async (file) => {
+                try {
+                  const result = await uploadVideo(file);
+                  await apiSendMessage({ encryptedContent: result.url, clientMsgId: crypto.randomUUID(), type: 'video' as any });
+                } catch { showToast('Failed to upload video'); }
+              }}
+              onFileSelect={async (file) => {
+                try {
+                  const result = await uploadFile(file);
+                  await apiSendMessage({ encryptedContent: `[${file.name}](${result.url})`, clientMsgId: crypto.randomUUID() });
+                } catch { showToast('Failed to upload file'); }
+              }}
+              isUploading={isUploading}
+              uploadProgress={uploadProgress}
+              onSendTyping={() => sendTyping()}
+              activeEffect={activeEffect}
+              onVoiceSend={async (blob, duration) => {
+                try {
+                  const result = await uploadFile(new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' }));
+                  await apiSendMessage({ encryptedContent: result.url, clientMsgId: crypto.randomUUID(), type: 'voice' as any });
+                } catch {
+                  const blobUrl = URL.createObjectURL(blob);
+                  addOptimisticMessage({
+                    id: `voice_${Date.now()}`,
+                    chatId: activeChat,
+                    senderId: userIdStr,
+                    senderName: userName,
+                    text: blobUrl,
+                    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                    date: new Date().toISOString().split('T')[0],
+                    isOwn: true,
+                    read: false,
+                    type: 'voice' as any,
+                    reactions: [],
+                  });
+                }
+              }}
+            />
+          )}
+
+          {/* Mobile InfoPanel */}
+          <Sheet open={showInfoPanel && !!chat} onOpenChange={(open) => !open && setShowInfoPanel(false)}>
+            <SheetContent side="right" className="w-full p-0 sm:max-w-full">
+              {chat && (
+                <InfoPanel
+                  chat={chat}
+                  open={true}
+                  onClose={() => setShowInfoPanel(false)}
+                  onMute={() => muteChat(activeChat)}
+                  onBlock={() => blockUser(activeChat)}
+                  onUnblock={() => unblockUser(activeChat)}
+                  onReport={() => setReportTarget(activeChat)}
+                  onLeave={() => setShowLeaveConfirm(true)}
+                  onDelete={() => deleteChat(activeChat)}
+                  onSetAutoDelete={() => setShowAutoDeleteDialog(true)}
+                  messages={chatMessages}
+                  onManageChannel={() => setShowEditChannel(true)}
+                  onManageGroup={() => setShowEditGroup(true)}
+                  isMobile={isMobile}
+                />
+              )}
+            </SheetContent>
+          </Sheet>
+        </>
       ) : (
-        chat && (
-          <InfoPanel
-            chat={chat}
-            open={showInfoPanel}
-            onClose={() => setShowInfoPanel(false)}
-            onMute={() => muteChat(activeChat)}
-            onBlock={() => blockUser(activeChat)}
-            onUnblock={() => unblockUser(activeChat)}
-            onReport={() => setReportTarget(activeChat)}
-            onLeave={() => setShowLeaveConfirm(true)}
-            onDelete={() => deleteChat(activeChat)}
-            onSetAutoDelete={() => setShowAutoDeleteDialog(true)}
-            messages={chatMessages}
-            onManageChannel={() => setShowEditChannel(true)}
-            onManageGroup={() => setShowEditGroup(true)}
-          />
-        )
+        <>
+          <ResizablePanelGroup direction="horizontal" className="flex-1">
+            <ResizablePanel
+              defaultSize={25}
+              minSize={4}
+              maxSize={40}
+              collapsible
+              collapsedSize={4}
+              onCollapse={() => setSidebarCollapsed(true)}
+              onExpand={() => setSidebarCollapsed(false)}
+            >
+              <Sidebar
+                chats={visibleChats}
+                archivedChats={archivedChats}
+                activeChat={activeChat}
+                onSelectChat={selectChat}
+                onPinChat={pinChat}
+                onMuteChat={(id) => muteChat(id)}
+                onMuteWithDuration={(id) => setShowMuteOptions(id)}
+                onDeleteChat={deleteChat}
+                onMarkRead={markReadHandler}
+                onMarkUnread={markUnread}
+                onArchiveChat={archiveChat}
+                onUnarchiveChat={unarchiveChat}
+                onBlockUser={blockUser}
+                onCreateChannel={() => setShowChannelModal(true)}
+                onCreateGroup={() => setShowGroupModal(true)}
+                onCreateFolder={() => setShowFolderEditor(true)}
+                onNewChat={() => setShowNewChatModal(true)}
+                customFolders={customFolders}
+                onMoveToFolder={moveToFolder}
+                chatDrafts={chatDrafts}
+                onClearHistory={(id) => { setActiveChat(id); setShowClearHistory(true); }}
+                collapsed={sidebarCollapsed}
+                onExpand={() => setSidebarCollapsed(false)}
+                onRefresh={() => {
+                  queryClient.invalidateQueries({ queryKey: ['conversations'] });
+                  showToast('Chats refreshed');
+                }}
+              />
+            </ResizablePanel>
+
+            <ResizableHandle className="w-[2px] hover:w-[4px] transition-all bg-border hover:bg-primary/40" />
+
+            <ResizablePanel defaultSize={75} minSize={40}>
+              <div className="flex h-full">
+                {chat && (
+                  <ChatArea
+                    chat={chat}
+                    messages={chatMessages}
+                    onSendMessage={sendMessage}
+                    onSendGif={sendGif}
+                    onReply={setReplyTo}
+                    onEdit={setEditMsg}
+                    onDelete={setDeleteMsg}
+                    onForward={setForwardMsg}
+                    onPin={handlePin}
+                    onReaction={handleReaction}
+                    onBookmark={bookmarkMessage}
+                    onTranslate={translateMessage}
+                    onCopyLink={copyMessageLink}
+                    onSelect={(msgId) => { setSelectMode(true); toggleSelectMessage(msgId); }}
+                    onVotePoll={votePoll}
+                    onOpenComments={setShowCommentsFor}
+                    replyTo={replyTo}
+                    editMsg={editMsg}
+                    onCancelReply={() => setReplyTo(null)}
+                    onCancelEdit={() => setEditMsg(null)}
+                    onSaveEdit={saveEdit}
+                    onHeaderClick={() => setShowInfoPanel(!showInfoPanel)}
+                    typingUsers={typingUsers[activeChat] || []}
+                    selectMode={selectMode}
+                    selectedMessages={selectedMessages}
+                    onToggleSelect={toggleSelectMessage}
+                    onSelectAll={selectAll}
+                    onExitSelect={() => { setSelectMode(false); setSelectedMessages(new Set()); }}
+                    onBulkDelete={bulkDelete}
+                    onBulkForward={() => setBulkForwardTarget(true)}
+                    onBulkCopy={bulkCopy}
+                    showSearch={showChatSearch}
+                    onToggleSearch={() => { setShowChatSearch(!showChatSearch); setChatSearchQuery(''); setChatSearchIndex(0); }}
+                    searchQuery={chatSearchQuery}
+                    onSearchChange={(q) => { setChatSearchQuery(q); setChatSearchIndex(0); }}
+                    searchResults={searchResults}
+                    searchIndex={chatSearchIndex}
+                    onNavigateSearch={navigateSearch}
+                    recentEmojis={recentEmojis}
+                    pinnedIndex={pinnedIndex[activeChat] || 0}
+                    onCyclePinned={cyclePinnedMessage}
+                    draft={chatDrafts[activeChat]}
+                    onCreatePoll={() => setShowPollModal(true)}
+                    onRollDice={rollDice}
+                    onSchedule={(text) => { setScheduledText(text); setShowScheduleModal(true); }}
+                    pendingEffect={pendingEffect}
+                    onSetEffect={setPendingEffect}
+                    onToggleEffectPicker={() => setEffectPicker(!effectPicker)}
+                    showEffectPicker={effectPicker}
+                    onMuteChat={() => muteChat(activeChat)}
+                    onClearHistory={() => setShowClearHistory(true)}
+                    onLeaveChat={() => setShowLeaveConfirm(true)}
+                    onBlockUser={() => blockUser(activeChat)}
+                    onDeleteChat={() => deleteChat(activeChat)}
+                    onManageChannel={() => setShowEditChannel(true)}
+                    onManageGroup={() => setShowEditGroup(true)}
+                    onReport={() => setReportTarget(activeChat)}
+                    slowMode={chat?.slowMode}
+                    requestStatus={chat?.requestStatus}
+                    onAcceptRequest={() => { acceptRequest(activeChat); showToast('Förfrågan godkänd'); }}
+                    onRejectRequest={() => { rejectRequest(activeChat); showToast('Förfrågan nekad'); }}
+                    requestRecipientName={chat?.name}
+                    onImageSelect={async (file) => {
+                      try {
+                        const result = await uploadImage(file);
+                        await apiSendMessage({ encryptedContent: result.url, clientMsgId: crypto.randomUUID(), type: 'image' as any });
+                      } catch { showToast('Failed to upload image'); }
+                    }}
+                    onVideoSelect={async (file) => {
+                      try {
+                        const result = await uploadVideo(file);
+                        await apiSendMessage({ encryptedContent: result.url, clientMsgId: crypto.randomUUID(), type: 'video' as any });
+                      } catch { showToast('Failed to upload video'); }
+                    }}
+                    onFileSelect={async (file) => {
+                      try {
+                        const result = await uploadFile(file);
+                        await apiSendMessage({ encryptedContent: `[${file.name}](${result.url})`, clientMsgId: crypto.randomUUID() });
+                      } catch { showToast('Failed to upload file'); }
+                    }}
+                    isUploading={isUploading}
+                    uploadProgress={uploadProgress}
+                    onSendTyping={() => sendTyping()}
+                    activeEffect={activeEffect}
+                    onVoiceSend={async (blob, duration) => {
+                      try {
+                        const result = await uploadFile(new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' }));
+                        await apiSendMessage({ encryptedContent: result.url, clientMsgId: crypto.randomUUID(), type: 'voice' as any });
+                      } catch {
+                        const blobUrl = URL.createObjectURL(blob);
+                        addOptimisticMessage({
+                          id: `voice_${Date.now()}`,
+                          chatId: activeChat,
+                          senderId: userIdStr,
+                          senderName: userName,
+                          text: blobUrl,
+                          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                          date: new Date().toISOString().split('T')[0],
+                          isOwn: true,
+                          read: false,
+                          type: 'voice' as any,
+                          reactions: [],
+                        });
+                      }
+                    }}
+                  />
+                )}
+
+                {/* Desktop InfoPanel */}
+                {chat && (
+                  <InfoPanel
+                    chat={chat}
+                    open={showInfoPanel}
+                    onClose={() => setShowInfoPanel(false)}
+                    onMute={() => muteChat(activeChat)}
+                    onBlock={() => blockUser(activeChat)}
+                    onUnblock={() => unblockUser(activeChat)}
+                    onReport={() => setReportTarget(activeChat)}
+                    onLeave={() => setShowLeaveConfirm(true)}
+                    onDelete={() => deleteChat(activeChat)}
+                    onSetAutoDelete={() => setShowAutoDeleteDialog(true)}
+                    messages={chatMessages}
+                    onManageChannel={() => setShowEditChannel(true)}
+                    onManageGroup={() => setShowEditGroup(true)}
+                  />
+                )}
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </>
       )}
 
       {showCommentsFor && (

@@ -56,7 +56,7 @@ const MyProfilePanel: React.FC<MyProfilePanelProps> = ({ onClose }) => {
         {/* Header */}
         <div className="relative">
           {/* Cover gradient */}
-          <div className="h-36 bg-gradient-to-br from-primary via-primary/80 to-secondary" />
+          <div className="h-36 bg-primary" />
 
           {/* Back button */}
           <button

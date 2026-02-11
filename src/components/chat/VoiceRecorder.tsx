@@ -117,7 +117,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSend, onCancel }) => {
           <Square size={16} />
         </button>
       ) : (
-        <button onClick={handleSend} className="p-2.5 rounded-full bg-gradient-to-br from-primary to-[hsl(252,60%,48%)] text-primary-foreground flex-shrink-0">
+        <button onClick={handleSend} className="p-2.5 rounded-full bg-primary text-primary-foreground flex-shrink-0">
           <Send size={16} />
         </button>
       )}

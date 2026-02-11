@@ -786,7 +786,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               }
             }}
             disabled={slowModeCountdown > 0}
-            className={`p-2.5 rounded-full flex-shrink-0 transition-all duration-200 ease-out ${inputText.trim() && slowModeCountdown <= 0 ? 'bg-gradient-to-br from-primary to-[hsl(252,60%,48%)] text-primary-foreground scale-100' : 'text-muted-foreground scale-95'} ${slowModeCountdown > 0 ? 'opacity-40' : ''}`}>
+            className={`p-2.5 rounded-full flex-shrink-0 transition-all duration-200 ease-out ${inputText.trim() && slowModeCountdown <= 0 ? 'bg-primary text-primary-foreground scale-100' : 'text-muted-foreground scale-95'} ${slowModeCountdown > 0 ? 'opacity-40' : ''}`}>
             {editMsg ? <Check size={18} /> : inputText.trim() ? <Send size={18} /> : <Mic size={18} />}
           </button>
 

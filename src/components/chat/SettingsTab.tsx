@@ -166,7 +166,7 @@ const SettingsTab: React.FC = () => {
           className="w-full px-4 py-5 flex items-center gap-4 border-b border-border/30 hover:bg-dex-hover transition-colors text-left active:bg-primary/[0.1]"
         >
           <div className="relative flex-shrink-0">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xl font-bold text-primary-foreground">
+            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-xl font-bold text-primary-foreground">
               {currentUser?.displayName?.slice(0, 2).toUpperCase() || 'U'}
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-primary flex items-center justify-center border-2 border-card">
@@ -286,7 +286,7 @@ const ProfileEditor: React.FC<{ currentUser: any; onBack: () => void }> = ({ cur
       {/* Avatar */}
       <div className="flex justify-center mb-6">
         <div className="relative">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-3xl font-bold text-primary-foreground">
+          <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-3xl font-bold text-primary-foreground">
             {displayName?.slice(0, 2).toUpperCase() || 'U'}
           </div>
           <button className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center border-2 border-card hover:bg-primary/90 transition-colors">
