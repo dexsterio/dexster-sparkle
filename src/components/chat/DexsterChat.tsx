@@ -671,21 +671,14 @@ const DexsterChat: React.FC = () => {
         } as Record<string, unknown> });
       } catch { /* settings update is best-effort */ }
     } catch {
-      // Fallback: create mock group locally so it works in preview
-      newId = `group-${Date.now()}`;
-      const initials = data.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-      const hue = Math.floor(Math.random() * 360);
-      queryClient.setQueryData(['conversations'], (old: Chat[] | undefined) => [
-        ...(old || []),
-        {
-          id: newId, name: data.name, type: 'group' as const, avatar: initials,
-          avatarColor: `${hue} 65% 55%`, muted: false, pinned: false, unread: 0,
-          lastMessage: 'Group created', lastTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          description: data.description, isPublic: data.isPublic, memberCount: data.memberIds.length + 1,
-          role: 'owner' as const, joinApproval: data.joinApproval,
-          chatHistoryForNewMembers: data.chatHistoryForNewMembers,
-        },
-      ]);
+      // ══════════════════════════════════════════════════════════════
+      // BACKEND: POST /messages/conversations { type: 'group', ... }
+      // This catch block fires when the API is unreachable.
+      // In production, show an error and abort.
+      // ══════════════════════════════════════════════════════════════
+      showToast('Failed to create group');
+      setShowGroupModal(false);
+      return;
     }
     // TODO: upload avatarFile if provided
     setShowGroupModal(false);
@@ -703,21 +696,14 @@ const DexsterChat: React.FC = () => {
       const result = await apiCreateChannel({ name: data.name, description: data.description, isPublic: data.isPublic });
       newId = String((result as any).id);
     } catch {
-      // Fallback: create mock channel locally so it works in preview
-      newId = `channel-${Date.now()}`;
-      const initials = data.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-      const hue = Math.floor(Math.random() * 360);
-      queryClient.setQueryData(['conversations'], (old: Chat[] | undefined) => [
-        ...(old || []),
-        {
-          id: newId, name: data.name, type: 'channel' as const, avatar: initials,
-          avatarColor: `${hue} 65% 55%`, muted: false, pinned: false, unread: 0,
-          lastMessage: 'Channel created', lastTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          description: data.description, isPublic: data.isPublic, subscriberCount: 1,
-          commentsEnabled: data.comments, reactionsEnabled: data.reactions,
-          signMessages: data.signMessages, role: 'owner' as const,
-        },
-      ]);
+      // ══════════════════════════════════════════════════════════════
+      // BACKEND: POST /messages/conversations { type: 'channel', ... }
+      // This catch block fires when the API is unreachable.
+      // In production, show an error and abort.
+      // ══════════════════════════════════════════════════════════════
+      showToast('Failed to create channel');
+      setShowChannelModal(false);
+      return;
     }
     setShowChannelModal(false);
     setActiveChat(newId);
@@ -986,7 +972,7 @@ const DexsterChat: React.FC = () => {
 
             <ResizablePanel defaultSize={75} minSize={40}>
               <div className="flex h-full">
-                {chat && (
+                {chat ? (
                   <ChatArea
                     chat={chat}
                     messages={chatMessages}
@@ -1094,6 +1080,12 @@ const DexsterChat: React.FC = () => {
                       }
                     }}
                   />
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+                    <div className="text-6xl mb-4">💬</div>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Select a conversation</h3>
+                    <p className="text-sm text-muted-foreground">Choose a chat from the sidebar to start messaging.</p>
+                  </div>
                 )}
 
                 {/* Desktop InfoPanel */}

@@ -2,7 +2,13 @@ import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import type { CustomFolder } from '@/types/chat';
-import { MOCK_FOLDERS } from '@/data/mockData';
+
+// ══════════════════════════════════════════════════════════════
+// BACKEND: GET /messages/folders
+// Returns: ApiFolder[]
+// Notes: Custom chat folders for the authenticated user.
+//        Falls back to empty array [] on error.
+// ══════════════════════════════════════════════════════════════
 
 // ── API response shape ──
 interface ApiFolder {
@@ -34,14 +40,14 @@ export function useFolders() {
         const data = await api.get<ApiFolder[]>('/messages/folders');
         return data.map(mapFolder);
       } catch (err) {
-        console.warn('[useFolders] API failed, using mock data:', err);
-        return MOCK_FOLDERS;
+        console.warn('[useFolders] API failed:', err);
+        return [];
       }
     },
     staleTime: 60_000,
   });
 
-  const folders = query.data ?? MOCK_FOLDERS;
+  const folders = query.data ?? [];
 
   // ── Create folder ──
   const createMutation = useMutation({

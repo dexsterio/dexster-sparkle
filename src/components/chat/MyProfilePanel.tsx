@@ -20,8 +20,16 @@ const MyProfilePanel: React.FC<MyProfilePanelProps> = ({ onClose }) => {
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const walletAddress = currentUser?.walletAddress || '7xKp...9mQz';
-  const mockBalance = '12.847 SOL';
+  const walletAddress = currentUser?.walletAddress || '';
+
+  // ══════════════════════════════════════════════════════════════
+  // BACKEND TODO: Fetch wallet balance from Solana RPC or backend
+  // Endpoint: GET /api/wallet/balance
+  // Response: { balance: string }  (e.g. "12.847 SOL")
+  // Notes: Use currentUser.walletAddress to query on-chain balance
+  //        or fetch from a cached backend endpoint.
+  // ══════════════════════════════════════════════════════════════
+  const walletBalance = '--';
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -39,9 +47,25 @@ const MyProfilePanel: React.FC<MyProfilePanelProps> = ({ onClose }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  // ══════════════════════════════════════════════════════════════
+  // BACKEND TODO: Save profile changes
+  // Endpoint: PUT /api/profile/me
+  // Request: { displayName?: string, bio?: string, avatarFile?: File }
+  // Response: { user: DexsterUser }
+  // Notes: For avatar upload, use multipart/form-data or a presigned
+  //        URL to Cloudflare R2, then pass the resulting URL to the API.
+  // ══════════════════════════════════════════════════════════════
+  const handleSave = async () => {
+    try {
+      // await api.put('/profile/me', { displayName, bio });
+      // if (avatarPreview && avatarPreview !== currentUser?.avatarUrl) {
+      //   // Upload avatar file via presigned URL or multipart
+      // }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      // Show error toast
+    }
     setEditingName(false);
     setEditingBio(false);
   };
@@ -181,7 +205,7 @@ const MyProfilePanel: React.FC<MyProfilePanelProps> = ({ onClose }) => {
             </label>
             <div className="flex items-center gap-2 bg-muted/40 rounded-lg px-3 py-2.5">
               <span className="text-lg font-semibold text-foreground flex-1">
-                {walletPublic ? mockBalance : '••••••'}
+                {walletPublic ? walletBalance : '••••••'}
               </span>
             </div>
           </div>

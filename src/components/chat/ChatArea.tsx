@@ -280,10 +280,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     if (msg.date !== currentDate) {
       currentDate = msg.date;
       const d = new Date(msg.date);
-      const today = new Date('2026-02-10');
-      const yesterday = new Date('2026-02-09');
+      const now = new Date();
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
       let label = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-      if (d.toDateString() === today.toDateString()) label = 'Today';
+      if (d.toDateString() === now.toDateString()) label = 'Today';
       else if (d.toDateString() === yesterday.toDateString()) label = 'Yesterday';
       groupedMessages.push({ date: msg.date, label, msgs: [] });
     }

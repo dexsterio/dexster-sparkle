@@ -2,7 +2,14 @@ import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import type { Message } from '@/types/chat';
-import { MOCK_MESSAGES } from '@/data/mockData';
+
+// ══════════════════════════════════════════════════════════════
+// BACKEND: GET /messages/conversations/:id/messages?limit=100
+// Returns: ApiMessage[]
+// Notes: Messages are E2E encrypted. Content must be decrypted
+//        locally via Signal Protocol (see signalManager.ts).
+//        Falls back to empty array [] on error.
+// ══════════════════════════════════════════════════════════════
 
 // ── API response shapes ──
 interface ApiMessage {
@@ -98,17 +105,24 @@ export function useMessages(conversationId: string, currentUserId: number) {
         );
         return data.map(m => mapMessage(m, currentUserId));
       } catch (err) {
-        console.warn('[useMessages] API failed, using mock data:', err);
-        return MOCK_MESSAGES[conversationId] ?? [];
+        console.warn('[useMessages] API failed:', err);
+        return [];
       }
     },
     enabled: !!conversationId,
     staleTime: 15_000,
   });
 
-  const messages = query.data ?? MOCK_MESSAGES[conversationId] ?? [];
+  const messages = query.data ?? [];
 
   // ── Send message (E2E) ──
+  // ══════════════════════════════════════════════════════════════
+  // BACKEND: POST /messages/e2e/send
+  // Request: { conversationId, encryptedContent, replyToId?, clientMsgId,
+  //            nonce, senderKeyVersion, signalMessageType }
+  // Response: ApiMessage
+  // Notes: Content must be encrypted via Signal Protocol before sending.
+  // ══════════════════════════════════════════════════════════════
   const sendMutation = useMutation({
     mutationFn: (payload: {
       encryptedContent: string;
@@ -170,6 +184,11 @@ export function useMessages(conversationId: string, currentUserId: number) {
   });
 
   // ── Edit message (E2E) ──
+  // ══════════════════════════════════════════════════════════════
+  // BACKEND: PUT /messages/e2e/:messageId
+  // Request: { encryptedContent, nonce, senderKeyVersion, signalMessageType }
+  // Response: ApiMessage
+  // ══════════════════════════════════════════════════════════════
   const editMutation = useMutation({
     mutationFn: (payload: {
       messageId: string;
@@ -212,7 +231,6 @@ export function useMessages(conversationId: string, currentUserId: number) {
       api.post(`/messages/${messageId}/reactions`, { emoji }),
     onMutate: async ({ messageId, emoji }) => {
       await queryClient.cancelQueries({ queryKey });
-      const previous = queryClient.getQueryData<Message[]>(queryKey);
       queryClient.setQueryData<Message[]>(queryKey, old =>
         (old ?? []).map(m => {
           if (m.id !== messageId) return m;
@@ -226,13 +244,7 @@ export function useMessages(conversationId: string, currentUserId: number) {
           return { ...m, reactions };
         })
       );
-      return { previous };
     },
-    onError: (_err, _vars, context) => {
-      // Only rollback if we have previous data AND the API is actually reachable
-      // Don't rollback in preview/mock mode (401s)
-    },
-    // Don't invalidate — the API is unreachable in preview, which would overwrite optimistic updates
   });
 
   // ── Remove reaction ──
@@ -241,7 +253,6 @@ export function useMessages(conversationId: string, currentUserId: number) {
       api.delete(`/messages/${messageId}/reactions`, { emoji }),
     onMutate: async ({ messageId, emoji }) => {
       await queryClient.cancelQueries({ queryKey });
-      const previous = queryClient.getQueryData<Message[]>(queryKey);
       queryClient.setQueryData<Message[]>(queryKey, old =>
         (old ?? []).map(m => {
           if (m.id !== messageId) return m;
@@ -251,10 +262,6 @@ export function useMessages(conversationId: string, currentUserId: number) {
           return { ...m, reactions };
         })
       );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      // Don't rollback in preview/mock mode
     },
   });
 

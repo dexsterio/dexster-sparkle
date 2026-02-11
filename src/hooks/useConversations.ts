@@ -2,7 +2,13 @@ import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import type { Chat } from '@/types/chat';
-import { MOCK_CHATS } from '@/data/mockData';
+
+// ══════════════════════════════════════════════════════════════
+// BACKEND: GET /messages/conversations
+// Returns: ApiConversation[]
+// Notes: All conversations for the authenticated user.
+//        Falls back to empty array [] on error.
+// ══════════════════════════════════════════════════════════════
 
 // ── API response shape ──
 interface ApiConversation {
@@ -120,15 +126,15 @@ export function useConversations() {
         const data = await api.get<ApiConversation[]>('/messages/conversations');
         return data.map(mapConversation);
       } catch (err) {
-        console.warn('[useConversations] API failed, using mock data:', err);
-        return MOCK_CHATS;
+        console.warn('[useConversations] API failed:', err);
+        return [];
       }
     },
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
 
-  const conversations = query.data ?? MOCK_CHATS;
+  const conversations = query.data ?? [];
 
   // ── Pin ──
   const pinMutation = useMutation({
@@ -205,6 +211,11 @@ export function useConversations() {
   });
 
   // ── Create Group ──
+  // ══════════════════════════════════════════════════════════════
+  // BACKEND: POST /messages/conversations
+  // Request: { type: 'group', name: string, description?: string, memberIds: number[] }
+  // Response: ApiConversation
+  // ══════════════════════════════════════════════════════════════
   const createGroupMutation = useMutation({
     mutationFn: (data: { name: string; description?: string; memberIds: number[] }) =>
       api.post<ApiConversation>('/messages/conversations', {
@@ -220,6 +231,11 @@ export function useConversations() {
   });
 
   // ── Create Channel ──
+  // ══════════════════════════════════════════════════════════════
+  // BACKEND: POST /messages/conversations
+  // Request: { type: 'channel', name: string, description?: string, isPublic: boolean }
+  // Response: ApiConversation
+  // ══════════════════════════════════════════════════════════════
   const createChannelMutation = useMutation({
     mutationFn: (data: { name: string; description?: string; isPublic: boolean }) =>
       api.post<ApiConversation>('/messages/conversations', {
@@ -235,6 +251,11 @@ export function useConversations() {
   });
 
   // ── Create DM ──
+  // ══════════════════════════════════════════════════════════════
+  // BACKEND: POST /messages/conversations
+  // Request: { type: 'dm', recipientId: number }
+  // Response: ApiConversation
+  // ══════════════════════════════════════════════════════════════
   const createDMMutation = useMutation({
     mutationFn: (data: { recipientId: number }) =>
       api.post<ApiConversation>('/messages/conversations', {
@@ -243,7 +264,6 @@ export function useConversations() {
       }),
     onSuccess: (data) => {
       const chat = mapConversation(data);
-      // New DMs to non-contacts start as pending_sent
       if (!chat.requestStatus || chat.requestStatus === 'none') {
         chat.requestStatus = 'pending_sent';
       }
