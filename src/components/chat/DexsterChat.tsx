@@ -980,7 +980,7 @@ const DexsterChat: React.FC = () => {
       {showFolderEditor && <FolderEditorModal chats={visibleChats} onCreate={createCustomFolder} onClose={() => setShowFolderEditor(false)} />}
       {showAutoDeleteDialog && <AutoDeleteDialog currentTimer={chat?.autoDeleteTimer || 0} onSet={(timer) => setAutoDelete(activeChat, timer)} onCancel={() => setShowAutoDeleteDialog(false)} />}
       {showClearHistory && <ClearHistoryDialog chatName={chat?.name || ''} chatType={chat?.type || 'personal'} onConfirm={clearHistory} onCancel={() => setShowClearHistory(false)} />}
-      {showEditChannel && chat && <EditChannelModal chat={chat} onSave={updateChannelSettings} onClose={() => setShowEditChannel(false)} onOpenInviteLinks={() => { setShowEditChannel(false); setShowInviteLinks(true); }} onOpenAdmins={() => { setShowEditChannel(false); setShowAdminManagement(true); }} onDeleteChannel={() => { deleteChat(activeChat); setShowEditChannel(false); }} />}
+      {showEditChannel && chat && <EditChannelModal chat={chat} onSave={updateChannelSettings} onClose={() => setShowEditChannel(false)} onOpenInviteLinks={() => { setShowEditChannel(false); setShowInviteLinks(true); }} onOpenAdmins={() => { setShowEditChannel(false); setShowAdminManagement(true); }} onDeleteChannel={() => { deleteChat(activeChat); setShowEditChannel(false); }} onOpenBannedUsers={() => { setShowEditChannel(false); setShowBannedUsers(true); }} />}
       {showEditGroup && chat && <EditGroupModal chat={chat} onSave={updateGroupSettings} onClose={() => setShowEditGroup(false)}
         onOpenInviteLinks={() => { setShowEditGroup(false); setShowInviteLinks(true); }}
         onOpenAdmins={() => { setShowEditGroup(false); setShowAdminManagement(true); }}

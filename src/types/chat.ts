@@ -79,6 +79,8 @@ export interface Message {
   gifUrl?: string;
 }
 
+export type SignatureMode = 'anonymous' | 'text' | 'profile';
+
 export interface AdminPermissions {
   changeInfo: boolean;
   postMessages: boolean;
@@ -91,6 +93,7 @@ export interface AdminPermissions {
   stayAnonymous: boolean;
   addAdmins: boolean;
   manageTopics: boolean;
+  postStories: boolean;
 }
 
 export interface AdminEntry {
@@ -172,6 +175,7 @@ export interface Chat {
   role?: 'owner' | 'admin' | 'member';
   // Channel/Group management
   signMessages?: boolean;
+  signatureMode?: SignatureMode;
   autoTranslate?: boolean;
   accentColor?: string;
   directMessages?: boolean;
@@ -181,6 +185,7 @@ export interface Chat {
   removedUsers?: string[];
   bannedUsers?: string[] | BannedUserEntry[];
   recentActions?: { action: string; userId: string; timestamp: string }[];
+  participantsHidden?: boolean;
   // Group-specific
   permissions?: GroupPermissions;
   slowMode?: number;

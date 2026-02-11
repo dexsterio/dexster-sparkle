@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Chat, Message, ChatType, GroupPermissions, InviteLink, AdminEntry, AdminPermissions, User, MemberRestriction, BannedUserEntry } from '@/types/chat';
+import { Chat, Message, ChatType, GroupPermissions, InviteLink, AdminEntry, AdminPermissions, User, MemberRestriction, BannedUserEntry, SignatureMode } from '@/types/chat';
 import { X, Copy, Trash2, Plus, Shield, Crown, Link, Camera, Image, Users, Bell, Clock, Lock, MessageSquare, Hash, Globe, Eye, EyeOff, AlertTriangle, Megaphone, ChevronRight, Ban, UserMinus, Settings } from 'lucide-react';
 import { useUserSearch } from '@/hooks/useUserSearch';
 
@@ -927,21 +927,23 @@ interface EditChannelModalProps {
   onOpenInviteLinks: () => void;
   onOpenAdmins: () => void;
   onDeleteChannel: () => void;
+  onOpenBannedUsers?: () => void;
 }
 
-export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave, onClose, onOpenInviteLinks, onOpenAdmins, onDeleteChannel }) => {
+export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave, onClose, onOpenInviteLinks, onOpenAdmins, onDeleteChannel, onOpenBannedUsers }) => {
   const [name, setName] = useState(chat.name);
   const [description, setDescription] = useState(chat.description || '');
   const [isPublic, setIsPublic] = useState(chat.isPublic ?? true);
   const [commentsEnabled, setCommentsEnabled] = useState(chat.commentsEnabled ?? true);
   const [reactionsEnabled, setReactionsEnabled] = useState(chat.reactionsEnabled ?? true);
-  const [signMessages, setSignMessages] = useState(chat.signMessages ?? false);
+  const [signatureMode, setSignatureMode] = useState<SignatureMode>(chat.signatureMode ?? (chat.signMessages ? 'text' : 'anonymous'));
   const [autoTranslate, setAutoTranslate] = useState(chat.autoTranslate ?? false);
   const [directMessages, setDirectMessages] = useState(chat.directMessages ?? true);
   const [restrictedContent, setRestrictedContent] = useState(chat.restrictedContent ?? false);
   const [joinApproval, setJoinApproval] = useState(chat.joinApproval ?? false);
   const [joinToSend, setJoinToSend] = useState(chat.joinToSend ?? true);
   const [slowMode, setSlowMode] = useState(chat.slowMode ?? 0);
+  const [participantsHidden, setParticipantsHidden] = useState(chat.participantsHidden ?? false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [activeSection, setActiveSection] = useState<'main' | 'permissions' | 'notifications'>('main');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -955,14 +957,17 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave
   }, []);
 
   const slowModeOptions = [
-    { label: 'Off', value: 0 }, { label: '10s', value: 10 }, { label: '30s', value: 30 },
+    { label: 'Off', value: 0 }, { label: '5s', value: 5 }, { label: '10s', value: 10 },
+    { label: '15s', value: 15 }, { label: '30s', value: 30 },
     { label: '1m', value: 60 }, { label: '5m', value: 300 }, { label: '15m', value: 900 }, { label: '1h', value: 3600 },
   ];
 
   const handleSave = () => {
     onSave({
-      name, description, isPublic, commentsEnabled, reactionsEnabled, signMessages,
+      name, description, isPublic, commentsEnabled, reactionsEnabled,
+      signMessages: signatureMode !== 'anonymous', signatureMode,
       autoTranslate, directMessages, restrictedContent, joinApproval, joinToSend, slowMode,
+      participantsHidden,
     });
   };
 
@@ -1029,15 +1034,34 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave
                 </button>
               </div>
 
+              {/* Signature Mode (3-way) */}
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Post Signatures</div>
+              <div className="space-y-1.5 mb-4">
+                {([
+                  { mode: 'anonymous' as SignatureMode, icon: <EyeOff size={15} />, label: 'Anonymous', desc: 'Posts show channel name only' },
+                  { mode: 'text' as SignatureMode, icon: <Megaphone size={15} />, label: 'Text Signature', desc: 'Show admin name as non-clickable text' },
+                  { mode: 'profile' as SignatureMode, icon: <Users size={15} />, label: 'Profile Signature', desc: 'Full sender info like group messages' },
+                ]).map(opt => (
+                  <button key={opt.mode} onClick={() => setSignatureMode(opt.mode)}
+                    className={`flex items-center gap-3 w-full py-2.5 px-3 rounded-lg text-left transition-all ${signatureMode === opt.mode ? 'bg-primary/10 border border-primary/30' : 'border border-transparent hover:bg-dex-hover'}`}>
+                    <span className={signatureMode === opt.mode ? 'text-primary' : 'text-muted-foreground'}>{opt.icon}</span>
+                    <div>
+                      <span className="text-sm text-foreground">{opt.label}</span>
+                      <div className="text-[11px] text-muted-foreground">{opt.desc}</div>
+                    </div>
+                    {signatureMode === opt.mode && <span className="ml-auto text-primary text-sm">✓</span>}
+                  </button>
+                ))}
+              </div>
+
               {/* Settings list */}
               <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Settings</div>
               <div className="space-y-0.5 mb-4">
                 {[
                   { icon: <MessageSquare size={15} />, label: 'Allow Comments', desc: 'Enable discussion under posts', value: commentsEnabled, set: setCommentsEnabled },
                   { icon: <span className="text-sm">😊</span>, label: 'Allow Reactions', desc: 'Let subscribers react to posts', value: reactionsEnabled, set: setReactionsEnabled },
-                  { icon: <Megaphone size={15} />, label: 'Sign Messages', desc: 'Show admin name on posts', value: signMessages, set: setSignMessages },
                   { icon: <Globe size={15} />, label: 'Auto-translate', desc: 'Translate messages for subscribers', value: autoTranslate, set: setAutoTranslate },
-                  { icon: <Users size={15} />, label: 'Direct Messages', desc: 'Allow members to DM each other', value: directMessages, set: setDirectMessages },
+                  { icon: <Users size={15} />, label: 'Direct Messages', desc: 'Allow subscribers to DM the channel', value: directMessages, set: setDirectMessages },
                 ].map(t => (
                   <div key={t.label} className="flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-dex-hover transition-colors">
                     <div className="flex items-center gap-2.5">
@@ -1063,7 +1087,7 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave
                     <EyeOff size={15} className="text-muted-foreground" />
                     <div>
                       <span className="text-sm text-foreground">Restrict Saving Content</span>
-                      <div className="text-[11px] text-muted-foreground">Prevent forwarding and saving of posts</div>
+                      <div className="text-[11px] text-muted-foreground">Prevent forwarding, copying and saving</div>
                     </div>
                   </div>
                   <Toggle value={restrictedContent} onChange={setRestrictedContent} />
@@ -1088,10 +1112,20 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave
                   </div>
                   <Toggle value={joinToSend} onChange={setJoinToSend} />
                 </div>
+                <div className="flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-dex-hover">
+                  <div className="flex items-center gap-2.5">
+                    <Eye size={15} className="text-muted-foreground" />
+                    <div>
+                      <span className="text-sm text-foreground">Hide Subscriber List</span>
+                      <div className="text-[11px] text-muted-foreground">No one can see who is subscribed</div>
+                    </div>
+                  </div>
+                  <Toggle value={participantsHidden} onChange={setParticipantsHidden} />
+                </div>
               </div>
 
-              {/* Slow mode */}
-              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Slow Mode</div>
+              {/* Slow mode - complete intervals */}
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Slow Mode (Discussion)</div>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {slowModeOptions.map(o => (
                   <button key={o.value} onClick={() => setSlowMode(o.value)}
@@ -1132,13 +1166,22 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave
                   </div>
                   <span className="text-xs text-muted-foreground">{chat.subscriberCount?.toLocaleString() || 0}</span>
                 </div>
-                {chat.bannedUsers && chat.bannedUsers.length > 0 && (
-                  <div className="flex items-center justify-between py-3 px-3 text-sm text-foreground">
+                {onOpenBannedUsers && (
+                  <button onClick={onOpenBannedUsers} className="flex items-center justify-between w-full py-3 px-3 rounded-lg hover:bg-dex-hover text-sm text-foreground transition-colors">
                     <div className="flex items-center gap-2.5">
-                      <AlertTriangle size={16} className="text-destructive" />
+                      <Ban size={16} className="text-destructive" />
                       <span>Banned Users</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{chat.bannedUsers.length}</span>
+                    <span className="text-xs text-muted-foreground">{(chat.bannedUsers || []).length}</span>
+                  </button>
+                )}
+                {(chat.removedUsers || []).length > 0 && (
+                  <div className="flex items-center justify-between py-3 px-3 text-sm text-foreground">
+                    <div className="flex items-center gap-2.5">
+                      <UserMinus size={16} className="text-muted-foreground" />
+                      <span>Removed Users</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{chat.removedUsers!.length}</span>
                   </div>
                 )}
               </div>
@@ -1602,7 +1645,7 @@ export const InviteLinksModal: React.FC<InviteLinksModalProps> = ({ inviteLinks,
 const DEFAULT_ADMIN_PERMS: AdminPermissions = {
   changeInfo: true, postMessages: true, editMessages: true, deleteMessages: true,
   banUsers: true, inviteUsers: true, pinMessages: true, manageVideoChats: false,
-  stayAnonymous: false, addAdmins: false, manageTopics: false,
+  stayAnonymous: false, addAdmins: false, manageTopics: false, postStories: false,
 };
 
 interface AdminManagementModalProps {
@@ -1634,7 +1677,9 @@ export const AdminManagementModal: React.FC<AdminManagementModalProps> = ({ chat
   const isCurrentUser = (userId: string) => userId === currentUserId;
 
   const adminPermLabels: { key: keyof AdminPermissions; label: string }[] = [
-    { key: 'changeInfo', label: 'Change group info' },
+    { key: 'changeInfo', label: 'Change channel/group info' },
+    { key: 'postMessages', label: 'Post messages' },
+    { key: 'editMessages', label: 'Edit messages of others' },
     { key: 'deleteMessages', label: 'Delete messages' },
     { key: 'banUsers', label: 'Ban users' },
     { key: 'inviteUsers', label: 'Invite users via link' },
@@ -1643,6 +1688,7 @@ export const AdminManagementModal: React.FC<AdminManagementModalProps> = ({ chat
     { key: 'stayAnonymous', label: 'Stay anonymous' },
     { key: 'addAdmins', label: 'Add new admins' },
     { key: 'manageTopics', label: 'Manage topics' },
+    { key: 'postStories', label: 'Post stories' },
   ];
 
   const startEditAdmin = (admin: AdminEntry) => {
