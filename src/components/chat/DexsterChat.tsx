@@ -12,7 +12,7 @@ import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import InfoPanel from './InfoPanel';
 import CommentsPanel from './CommentsPanel';
-import { DeleteDialog, ForwardModal, CreateChannelModal, CreateGroupModal, PollCreationModal, PinConfirmModal, ReportDialog, MuteOptionsModal, SchedulePickerModal, FolderEditorModal, AutoDeleteDialog, EffectPickerMenu, ClearHistoryDialog, EditChannelModal, EditGroupModal, InviteLinksModal, AdminManagementModal, LeaveConfirmDialog } from './Modals';
+import { DeleteDialog, ForwardModal, CreateChannelModal, CreateGroupModal, PollCreationModal, PinConfirmModal, ReportDialog, MuteOptionsModal, SchedulePickerModal, FolderEditorModal, AutoDeleteDialog, EffectPickerMenu, ClearHistoryDialog, EditChannelModal, EditGroupModal, InviteLinksModal, AdminManagementModal, LeaveConfirmDialog, NewChatModal } from './Modals';
 
 const DexsterChat: React.FC = () => {
   // ========= AUTH & DATA HOOKS =========
@@ -29,6 +29,7 @@ const DexsterChat: React.FC = () => {
     pinConversation, muteConversation, archiveConversation,
     markRead, leaveConversation, deleteConversation,
     createGroup: apiCreateGroup, createChannel: apiCreateChannel,
+    createDM,
   } = useConversations();
 
   const { folders: customFolders, createFolder: apiCreateFolder } = useFolders();
@@ -60,7 +61,7 @@ const DexsterChat: React.FC = () => {
   const [showInviteLinks, setShowInviteLinks] = useState(false);
   const [showAdminManagement, setShowAdminManagement] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
-
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
   // Multi-select
   const [selectMode, setSelectMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
@@ -780,6 +781,7 @@ const DexsterChat: React.FC = () => {
         onCreateChannel={() => setShowChannelModal(true)}
         onCreateGroup={() => setShowGroupModal(true)}
         onCreateFolder={() => setShowFolderEditor(true)}
+        onNewChat={() => setShowNewChatModal(true)}
         customFolders={customFolders}
         onMoveToFolder={moveToFolder}
         chatDrafts={chatDrafts}
@@ -893,6 +895,17 @@ const DexsterChat: React.FC = () => {
       {showInviteLinks && chat && <InviteLinksModal inviteLinks={chat.inviteLinks || []} onCreate={() => createInviteLink()} onRevoke={revokeInviteLink} onClose={() => setShowInviteLinks(false)} />}
       {showAdminManagement && chat && <AdminManagementModal chat={chat} users={chat.members || []} currentUserId={userIdStr} onPromote={promoteAdmin} onDemote={demoteAdmin} onClose={() => setShowAdminManagement(false)} />}
       {showLeaveConfirm && chat && <LeaveConfirmDialog chatName={chat.name} chatType={chat.type} onConfirm={() => { leaveChat(activeChat); setShowLeaveConfirm(false); }} onCancel={() => setShowLeaveConfirm(false)} />}
+      {showNewChatModal && <NewChatModal onClose={() => setShowNewChatModal(false)} onStartChat={async (recipientId) => {
+        try {
+          const result = await createDM({ recipientId });
+          setShowNewChatModal(false);
+          setActiveChat(String((result as any).id));
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        } catch {
+          setShowNewChatModal(false);
+          showToast('Failed to start chat');
+        }
+      }} />}
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-card border border-border text-sm text-foreground shadow-lg animate-[toastIn_0.2s_ease-out] z-50">

@@ -20,6 +20,7 @@ interface SidebarProps {
   onCreateChannel: () => void;
   onCreateGroup: () => void;
   onCreateFolder: () => void;
+  onNewChat: () => void;
   customFolders: CustomFolder[];
   onMoveToFolder: (chatId: string, folderId: string) => void;
   chatDrafts: Record<string, string>;
@@ -36,7 +37,7 @@ const DEFAULT_FOLDERS = [
 const Sidebar: React.FC<SidebarProps> = ({
   chats, archivedChats, activeChat, onSelectChat, onPinChat, onMuteChat, onMuteWithDuration,
   onDeleteChat, onMarkRead, onMarkUnread, onArchiveChat, onUnarchiveChat, onBlockUser,
-  onCreateChannel, onCreateGroup, onCreateFolder, customFolders, onMoveToFolder, chatDrafts,
+  onCreateChannel, onCreateGroup, onCreateFolder, onNewChat, customFolders, onMoveToFolder, chatDrafts,
   onClearHistory,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -126,7 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </button>
             {showNewMenu && (
               <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-xl z-50 min-w-[180px] animate-[contextIn_0.15s_ease-out]">
-                <button onClick={() => { setShowNewMenu(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors rounded-t-xl">💬 New Chat</button>
+                <button onClick={() => { setShowNewMenu(false); onNewChat(); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors rounded-t-xl">💬 New Chat</button>
                 <button onClick={() => { setShowNewMenu(false); onCreateGroup(); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">👥 New Group</button>
                 <button onClick={() => { setShowNewMenu(false); onCreateChannel(); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors rounded-b-xl">📢 New Channel</button>
               </div>

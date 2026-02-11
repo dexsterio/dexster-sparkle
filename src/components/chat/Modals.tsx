@@ -973,3 +973,59 @@ export const LeaveConfirmDialog: React.FC<LeaveConfirmDialogProps> = ({ chatName
     </div>
   );
 };
+
+// ============= NEW CHAT MODAL (DM) =============
+interface NewChatModalProps {
+  onClose: () => void;
+  onStartChat: (userId: number) => void;
+}
+
+export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onStartChat }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const { data: searchResults, isLoading: isSearching } = useUserSearch(searchQuery);
+
+  return (
+    <div className={MODAL_BACKDROP} onClick={onClose}>
+      <div className={`${MODAL_CARD} p-6 w-[420px] max-h-[500px] flex flex-col`} onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-semibold text-foreground">New Chat</h3>
+          <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
+        </div>
+        <input
+          autoFocus
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search users..."
+          className="w-full mb-3 px-3 py-2 rounded-lg bg-muted text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+        <div className="flex-1 overflow-y-auto space-y-1 min-h-[120px]">
+          {isSearching && <p className="text-xs text-muted-foreground text-center py-3">Searching...</p>}
+          {searchQuery.length < 2 && !isSearching && (
+            <p className="text-xs text-muted-foreground text-center py-3">Type at least 2 characters to search</p>
+          )}
+          {searchResults?.map(u => (
+            <button key={u.id} onClick={() => onStartChat(u.id)}
+              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg hover:bg-dex-hover transition-colors border border-transparent">
+              <div className="relative flex-shrink-0">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white"
+                  style={{ background: `hsl(${(u.id * 137) % 360} 65% 55%)` }}>
+                  {(u.displayName || u.username).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                {u.isOnline && (
+                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-dex-online border-2 border-card" />
+                )}
+              </div>
+              <div className="flex-1 text-left">
+                <span className="text-sm font-medium text-foreground">{u.displayName || u.username}</span>
+                <p className="text-[11px] text-muted-foreground">@{u.username}</p>
+              </div>
+            </button>
+          ))}
+          {searchResults?.length === 0 && searchQuery.length >= 2 && !isSearching && (
+            <p className="text-xs text-muted-foreground text-center py-3">No users found</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
