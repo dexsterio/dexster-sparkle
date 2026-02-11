@@ -1,129 +1,115 @@
 
 
-# Mobilanpassning av Dexster Chat
+# Produktionsklar PWA -- Dexster Chat
 
 ## Oversikt
 
-Chatten ar byggd som en fast tvakolumnslayout (340px sidebar + flexibel chattyta + 360px infopanel). Inget ar responsivt idag. Planen ar att implementera en fullstandig mobilupplevelse dar sidebar, chattyta och paneler visas som separata fullskarmsvyer med smidiga overganger -- likt Telegram/WhatsApp pa mobil.
+Appen saknar idag all PWA-infrastruktur. Planen ar att bygga en fullt produktionsklar Progressive Web App med offline-stod, installationsprompt, uppdateringshantering, och alla metadata som kravs for app-stores och hemskarmsinstallation.
 
-## Arkitektur
+## Ny dependency
 
-Mobilvyn anvander en **view-stack-modell**: pa mobil visas bara en vy i taget (sidebar ELLER chattyta ELLER infopanel), med animerade overganger. `useIsMobile()` (redan finns i projektet) styr vilken layout som renderas.
+- `vite-plugin-pwa` (devDependency) -- genererar service worker, manifest och precache automatiskt
+
+## Implementering
+
+### 1. Vite-konfiguration (`vite.config.ts`)
+
+Lagg till `VitePWA`-pluginen med fullstandig konfiguration:
+
+- **registerType**: `"prompt"` -- visar en uppdateringsnotis nar ny version finns, istallet for att tvinga reload
+- **Manifest**:
+  - `name`: "Dexster Chat"
+  - `short_name`: "Dexster"
+  - `description`: "A modern messaging experience"
+  - `theme_color`: "#7c5cfc" (primary-fargen)
+  - `background_color`: "#0a0b14" (mork bakgrund)
+  - `display`: "standalone"
+  - `orientation`: "portrait"
+  - `start_url`: "/"
+  - `scope`: "/"
+  - `categories`: ["social", "communication"]
+  - `screenshots`: (tomma for nu, kan laggas till senare)
+  - Ikoner i storlekar: 72, 96, 128, 144, 192, 384, 512 (genererade SVG-baserade PNG-placeholders)
+  - `maskable`-ikon (512x512) for adaptiva ikoner pa Android
+- **Workbox**:
+  - `navigateFallbackDenylist`: `[/^\/~oauth/]` (kritiskt for auth-redirects)
+  - `globPatterns`: `["**/*.{js,css,html,ico,png,svg,woff2}"]`
+  - Runtime caching for Google Fonts (CacheFirst, 30 dagar)
+  - Runtime caching for bilder (CacheFirst, 7 dagar, max 50 entries)
+  - `cleanupOutdatedCaches`: true
+  - `skipWaiting`: false (vanta pa anvandardens godkannande via prompt)
+
+### 2. PWA-ikoner (`public/`)
+
+Skapa SVG-baserade ikoner som renderar Dexster-logotypen (bokstaven "D" mot mork bakgrund med primary-fargen):
+- `public/pwa-192x192.svg` -- 192x192
+- `public/pwa-512x512.svg` -- 512x512
+- `public/pwa-maskable-512x512.svg` -- 512x512 maskable (extra padding)
+- `public/apple-touch-icon-180x180.svg` -- 180x180 for iOS
+
+(SVG-ikoner fungerar i moderna browsrar och ar vektorbaserade sa de skalar perfekt)
+
+### 3. HTML-metadata (`index.html`)
+
+Lagg till foljande i `<head>`:
 
 ```text
-DESKTOP (>=768px)                    MOBIL (<768px)
-+----------+------------------+      +------------------+
-| Sidebar  |    ChatArea      |      | [Sidebar]        | <-- fullskarm
-| 340px    |    flex-1        |      | eller             |
-|          |                  |      | [ChatArea]        | <-- fullskarm
-|          |                  |      | eller             |
-|          |    [InfoPanel]   |      | [InfoPanel]       | <-- slide-in sheet
-+----------+------------------+      +------------------+
+- <link rel="manifest" href="/manifest.webmanifest">
+- <meta name="theme-color" content="#7c5cfc">
+- <meta name="apple-mobile-web-app-capable" content="yes">
+- <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+- <meta name="apple-mobile-web-app-title" content="Dexster">
+- <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.svg">
+- <meta name="msapplication-TileColor" content="#7c5cfc">
+- <meta name="application-name" content="Dexster Chat">
 ```
 
-## Steg-for-steg implementering
+### 4. SW-registrering och uppdateringsprompt (`src/main.tsx`)
 
-### 1. DexsterChat.tsx -- Mobilvy-logik
+- Importera `registerSW` fran `virtual:pwa-register`
+- Registrera service workern med `onNeedRefresh`-callback
+- Nar ny version finns: visa en toast (via sonner) med "Ny version tillganglig -- Uppdatera" knapp
+- Nar anvandaren klickar: anropa `updateSW(true)` for att aktivera nya versionen
 
-- Importera `useIsMobile()` hook
-- Lagg till state: `mobileView: 'sidebar' | 'chat'`
-- Pa mobil: rendera ANTINGEN Sidebar ELLER ChatArea (inte bada samtidigt)
-- Nar anvandaren valjer en chatt -> byt till `mobileView: 'chat'`
-- Lagg till en tillbaka-knapp i ChatArea-headern pa mobil -> byt till `mobileView: 'sidebar'`
-- InfoPanel renderas som en Sheet (slide-in fran hoger) pa mobil istallet for en fast kolumn
-- CommentsPanel renderas pa samma satt -- fullskarmsstacklad vy
+### 5. Offline-fallback-komponent (`src/components/OfflineIndicator.tsx`)
 
-### 2. Sidebar.tsx -- Mobilanpassning
+Ny komponent som:
+- Lyssnar pa `navigator.onLine` och `online`/`offline`-events
+- Visar en tydlig banner hogst upp i appen nar anslutningen tapps: "Du ar offline -- meddelanden synkas nar du ar online igen"
+- Bannen forsvinner med fade-animation nar anslutningen aterupprattas
 
-- Andra fast bredd `w-[340px]` till `w-full md:w-[340px]`
-- Justera padding och typstorlekar for touch-targets (minst 44px hojd pa klickbara element)
-- Folder-tabbar: horisontell scroll med momentum (`overflow-x-auto`, `-webkit-overflow-scrolling: touch`)
-- Chat-listelement: storre touch-areas (py-3 istallet for py-2.5)
-- Soksfaltet: fullbredd, storre font
-- Ny chatt-menyn: fullbredd-dropdown anpassad for mobil
-- Lagg till safe-area-insets for iPhones med notch
+### 6. Integration i `App.tsx`
 
-### 3. ChatArea.tsx -- Mobilanpassning
+- Lagg till `<OfflineIndicator />` komponenten i app-layouten (ovanfor Routes)
 
-- Lagg till en tillbaka-knapp (ArrowLeft) langst till vanster i headern, synlig BARA pa mobil
-- Prop: `onBack?: () => void` -- anropas nar tillbaka trycks
-- Header: kompaktare layout med storre touch-targets
-- Meddelandeyta: fullbredd bubblor (`max-w-[85vw]` istallet for `max-w-[480px]`)
-- Input-area: anpassad for mobil med storre knappar
-- Emoji-picker: renderas som en bottom-sheet pa mobil (absolute bottom med max-height)
-- GIF-picker: samma bottom-sheet-beteende
-- Attach-meny: fullbredd bottom-sheet
-- Header-meny: fullskarms-overlay pa mobil istallet for absolut dropdown
-- Format-toolbar: horisontell scroll pa sma skarmar
-- Select mode toolbar: kompaktare med ikoner istallet for text+ikoner
-- Scroll-to-bottom FAB: positionerad for mobil (bottom-20 right-4)
+### 7. TypeScript-typer (`src/vite-env.d.ts`)
 
-### 4. MessageBubble.tsx -- Mobilanpassning
+- Lagg till `/// <reference types="vite-plugin-pwa/client" />` for att typa `virtual:pwa-register`
 
-- Max-bredd: `max-w-[85vw] md:max-w-[480px]`
-- Long-press for kontextmeny (istallet for hogerklick)
-- Swipe-to-reply gester (stretch goal, kan lagas till via touch events)
-- Reaction-picker: storre knappar for touch
-- Hover-actions doljs pa mobil (ersatts av long-press kontextmeny)
-- Kontextmeny: renderas som en centrerad bottom-sheet pa mobil
+## Filer som andras/skapas
 
-### 5. InfoPanel.tsx -- Mobilt Sheet
+| Fil | Typ |
+|-----|-----|
+| `vite.config.ts` | Redigera -- lagg till VitePWA plugin |
+| `package.json` | Redigera -- lagg till vite-plugin-pwa |
+| `index.html` | Redigera -- PWA meta-taggar |
+| `src/main.tsx` | Redigera -- SW-registrering + uppdateringsprompt |
+| `src/vite-env.d.ts` | Redigera -- PWA-typer |
+| `src/components/OfflineIndicator.tsx` | Ny -- offline-banner |
+| `src/App.tsx` | Redigera -- lagg till OfflineIndicator |
+| `public/pwa-192x192.svg` | Ny -- app-ikon |
+| `public/pwa-512x512.svg` | Ny -- app-ikon |
+| `public/pwa-maskable-512x512.svg` | Ny -- maskable ikon |
+| `public/apple-touch-icon-180x180.svg` | Ny -- iOS-ikon |
 
-- Pa mobil: renderas inuti en Sheet-komponent (slide fran hoger, fullskarm)
-- Andras fran `w-[360px]` till fullbredd inuti sheeten
-- Storre touch-targets pa alla knappar
-- Scrollbar som fungerar bra pa touch
+## Vad detta ger anvandaren
 
-### 6. EmojiPicker.tsx och GifPicker.tsx
-
-- Pa mobil: renderas som bottom-sheets med drag-to-dismiss
-- Storre emoji-knappar for touch (minst 40x40px)
-- Fullbredd sokfalt
-
-### 7. ContextMenu.tsx -- Mobilt bottom-sheet
-
-- Pa mobil: istallet for absolut positionerad dropdown, renderas som ett centrerat bottom-sheet med overlay
-- Storre touch-targets
-- Animerad inslidning fran botten
-
-### 8. Modals (alla dialoger)
-
-- Pa mobil: fullskarms-modaler eller bottom-sheets istallet for centrerade popups
-- Storre input-falt och knappar
-- Safe-area padding
-
-### 9. CSS-tillagg (index.css)
-
-- Safe area insets: `env(safe-area-inset-top)`, `env(safe-area-inset-bottom)`
-- Nya animations for mobiloverganger (slide-left, slide-right)
-- Touch-specifik styling: `-webkit-tap-highlight-color: transparent`
-- Viewport meta-tag kontroll (redan i index.html)
-
-## Tekniska detaljer
-
-### Responsiva breakpoints
-- `<768px`: Mobillayout (en vy i taget)
-- `>=768px`: Desktoplayout (nuvarande tvakolumner)
-
-### Touch-optimering
-- Alla interaktiva element minst 44x44px (Apple HIG)
-- Long-press for kontextmenyer (300ms delay)
-- Smooth momentum scrolling overallt
-- Ingen hover-effekt pa mobil (anvand active states istallet)
-
-### Filer som andras
-1. `src/components/chat/DexsterChat.tsx` -- mobilvy-logik, villkorlig rendering
-2. `src/components/chat/Sidebar.tsx` -- responsiv bredd, touch-targets
-3. `src/components/chat/ChatArea.tsx` -- tillbaka-knapp, mobilanpassade pickers
-4. `src/components/chat/MessageBubble.tsx` -- long-press, responsiva bubblor
-5. `src/components/chat/InfoPanel.tsx` -- Sheet-wrapping pa mobil
-6. `src/components/chat/CommentsPanel.tsx` -- mobilanpassning
-7. `src/components/chat/ContextMenu.tsx` -- bottom-sheet pa mobil
-8. `src/components/chat/EmojiPicker.tsx` -- bottom-sheet pa mobil
-9. `src/components/chat/GifPicker.tsx` -- bottom-sheet pa mobil
-10. `src/components/chat/Modals.tsx` -- mobilanpassade modaler
-11. `src/index.css` -- nya animations, safe-area, touch-styling
-
-### Inga nya beroenden
-Allt byggs med befintliga verktyg: Tailwind CSS responsiva klasser, `useIsMobile()` hook, och befintliga Sheet/Drawer-komponenter fran shadcn/ui.
+- Appen kan installeras fran browsern till hemskarm (Android + iOS)
+- Startar i standalone-lage utan adressfalt
+- Fungerar offline med cachade resurser
+- Visar tydlig offline-indikator
+- Smidiga uppdateringar med prompt istallet for hard reload
+- Korrekt tema-farg i adressfalt och splash screen
+- Adaptiva ikoner pa Android (maskable)
+- Apple-specifik hemskarmsikon och statusbar-styling
 
