@@ -834,12 +834,18 @@ const DexsterChat: React.FC = () => {
           .filter(c => c.type === 'personal' && c.id !== 'saved')
           .slice(0, 10)
           .map(c => ({ id: c.id, name: c.name, avatar: c.avatar, avatarColor: c.avatarColor, online: c.online }))}
+        onSelectRecent={(chatId) => {
+          setShowNewChatModal(false);
+          selectChat(chatId);
+        }}
         onStartChat={async (recipientId) => {
           try {
             const result = await createDM({ recipientId });
             setShowNewChatModal(false);
-            setActiveChat(String((result as any).id));
-            queryClient.invalidateQueries({ queryKey: ['conversations'] });
+            if (result?.id) {
+              setActiveChat(String(result.id));
+              queryClient.invalidateQueries({ queryKey: ['conversations'] });
+            }
           } catch {
             setShowNewChatModal(false);
             showToast('Failed to start chat');
