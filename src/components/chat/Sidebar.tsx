@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Chat, CustomFolder } from '@/types/chat';
 import ContextMenu, { ContextMenuItem } from './ContextMenu';
-import { Search, Edit3, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import { Search, Menu, ChevronDown, ChevronRight, RefreshCw, User, Users, Megaphone, Phone, Bookmark, Settings, Moon } from 'lucide-react';
 import dexsterLogo from '@/assets/dexster-logo.svg';
+import { Switch } from '@/components/ui/switch';
 import MobileBottomNav, { MobileTab } from './MobileBottomNav';
 import NotificationBell from './NotificationBell';
 import ContactsTab from './ContactsTab';
@@ -55,6 +56,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>('chats');
+  const [showHamburger, setShowHamburger] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
   const newMenuRef = useRef<HTMLDivElement>(null);
   const chatListRef = useRef<HTMLDivElement>(null);
 
@@ -160,28 +163,71 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <img src={dexsterLogo} alt="Dexster" className="w-8 h-8" />
-          <span className="text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Dexster</span>
+          <button onClick={() => setShowHamburger(true)} className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground">
+            <Menu size={20} />
+          </button>
         </div>
         <div className="flex items-center gap-0.5">
           <NotificationBell />
           <button onClick={() => setShowSearch(!showSearch)} className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground">
             <Search size={18} />
           </button>
-          <div className="relative" ref={newMenuRef}>
-            <button onClick={() => setShowNewMenu(!showNewMenu)} className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground">
-              <Edit3 size={18} />
-            </button>
-            {showNewMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-xl z-50 min-w-[180px] animate-[contextIn_0.15s_ease-out]">
-                <button onClick={() => { setShowNewMenu(false); onNewChat(); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors rounded-t-xl">💬 New Chat</button>
-                <button onClick={() => { setShowNewMenu(false); onCreateGroup(); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors">👥 New Group</button>
-                <button onClick={() => { setShowNewMenu(false); onCreateChannel(); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-dex-hover text-foreground transition-colors rounded-b-xl">📢 New Channel</button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
+
+      {/* Hamburger Drawer */}
+      {showHamburger && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[100]" onClick={() => setShowHamburger(false)} />
+          <div className="fixed top-0 left-0 bottom-0 w-[280px] bg-card z-[101] flex flex-col animate-[slideInLeft_0.2s_ease-out] shadow-2xl">
+            {/* Profile section */}
+            <div className="p-5 pb-3 bg-gradient-to-br from-primary/90 to-secondary/90">
+              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-3xl mb-3">
+                <img src={dexsterLogo} alt="Dexster" className="w-12 h-12 rounded-full" />
+              </div>
+              <p className="text-white font-semibold text-base">Dexster User</p>
+              <p className="text-white/60 text-xs mt-0.5">Set Emoji Status ›</p>
+            </div>
+
+            {/* Menu items */}
+            <div className="flex-1 overflow-y-auto py-2">
+              {[
+                { icon: <User size={20} />, label: 'My Profile', action: () => { setShowHamburger(false); } },
+                { icon: <Users size={20} />, label: 'New Group', action: () => { setShowHamburger(false); onCreateGroup(); } },
+                { icon: <Megaphone size={20} />, label: 'New Channel', action: () => { setShowHamburger(false); onCreateChannel(); } },
+                { icon: <User size={20} />, label: 'Contacts', action: () => { setShowHamburger(false); if (isMobile) setMobileTab('contacts'); } },
+                { icon: <Phone size={20} />, label: 'Calls', action: () => { setShowHamburger(false); } },
+                { icon: <Bookmark size={20} />, label: 'Saved Messages', action: () => { setShowHamburger(false); onSelectChat('saved'); } },
+                { icon: <Settings size={20} />, label: 'Settings', action: () => { setShowHamburger(false); if (isMobile) setMobileTab('settings'); } },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  onClick={item.action}
+                  className="flex items-center gap-4 w-full px-5 py-3 text-sm text-foreground hover:bg-dex-hover transition-colors"
+                >
+                  <span className="text-muted-foreground">{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Night Mode */}
+            <div className="border-t border-border px-5 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-4 text-sm text-foreground">
+                <Moon size={20} className="text-muted-foreground" />
+                Night Mode
+              </div>
+              <Switch
+                checked={darkMode}
+                onCheckedChange={(val) => {
+                  setDarkMode(val);
+                  document.documentElement.classList.toggle('dark', val);
+                }}
+              />
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Search */}
       {showSearch && (
