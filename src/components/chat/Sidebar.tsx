@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { Chat, CustomFolder } from '@/types/chat';
 import ContextMenu, { ContextMenuItem } from './ContextMenu';
 import { Search, Menu, ChevronDown, ChevronRight, RefreshCw, User, Users, Megaphone, Phone, Bookmark, Settings, Moon } from 'lucide-react';
-import dexsterLogo from '@/assets/dexster-logo.svg';
+import { DexsterLogo } from './DexsterLogo';
 import { Switch } from '@/components/ui/switch';
 import MobileBottomNav, { MobileTab } from './MobileBottomNav';
 import NotificationBell from './NotificationBell';
@@ -168,6 +168,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <button onClick={() => setShowHamburger(true)} className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground">
             <Menu size={20} />
           </button>
+          <DexsterLogo size="sm" />
         </div>
         <div className="flex items-center gap-0.5">
           <NotificationBell />
@@ -183,12 +184,12 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="fixed inset-0 bg-black/40 z-[100]" onClick={() => setShowHamburger(false)} />
           <div className="fixed top-0 left-0 bottom-0 w-[280px] bg-card z-[101] flex flex-col animate-[slideInLeft_0.2s_ease-out] shadow-2xl">
             {/* Profile section */}
-            <div className="p-5 pb-3 bg-gradient-to-br from-primary/90 to-secondary/90">
-              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-3xl mb-3">
-                <img src={dexsterLogo} alt="Dexster" className="w-12 h-12 rounded-full" />
+            <div className="p-5 pb-3 bg-dex-surface">
+              <div className="mb-3">
+                <DexsterLogo size="md" />
               </div>
-              <p className="text-white font-semibold text-base">Dexster User</p>
-              <p className="text-white/60 text-xs mt-0.5">Set Emoji Status ›</p>
+              <p className="text-foreground font-semibold text-base">Dexster User</p>
+              <p className="text-muted-foreground text-xs mt-0.5">Set Emoji Status ›</p>
             </div>
 
             {/* Menu items */}
