@@ -102,8 +102,7 @@ async function apiFetch<T>(
     if (refreshed) {
       return apiFetch<T>(path, options, true);
     }
-    // Refresh failed — redirect to login
-    window.location.href = '/login';
+    // Refresh failed — throw error (let hooks handle fallback to mock data)
     throw new ApiError(401, 'Unauthorized', null);
   }
 
