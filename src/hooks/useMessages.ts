@@ -117,6 +117,7 @@ export function useMessages(conversationId: string, currentUserId: number) {
       nonce?: string;
       senderKeyVersion?: number;
       signalMessageType?: number;
+      type?: string;
     }) =>
       api.post<ApiMessage>(`/messages/e2e/send`, {
         conversationId: Number(conversationId),

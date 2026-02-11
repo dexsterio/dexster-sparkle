@@ -5,7 +5,10 @@ import { useWebSocket } from '@/contexts/WebSocketContext';
 import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { useFolders } from '@/hooks/useFolders';
+import { useInviteLinks } from '@/hooks/useInviteLinks';
+import { useMembers } from '@/hooks/useMembers';
 import { useQueryClient } from '@tanstack/react-query';
+import api from '@/lib/api';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import Sidebar from './Sidebar';
@@ -32,6 +35,10 @@ const DexsterChat: React.FC = () => {
     markRead, leaveConversation, deleteConversation,
     createGroup: apiCreateGroup, createChannel: apiCreateChannel,
     createDM, acceptRequest, rejectRequest,
+    blockConversation, unblockConversation,
+    clearHistory: apiClearHistory, updateSettings,
+    setAutoDelete: apiSetAutoDelete, reportConversation,
+    markUnread: apiMarkUnread, moveToFolder: apiMoveToFolder,
   } = useConversations();
 
   const { folders: customFolders, createFolder: apiCreateFolder } = useFolders();
@@ -39,6 +46,10 @@ const DexsterChat: React.FC = () => {
   // ========= CORE STATE =========
   const [activeChat, setActiveChat] = useState('');
   const [showInfoPanel, setShowInfoPanel] = useState(false);
+
+  // Hooks that depend on activeChat
+  const { inviteLink, generateLink: apiGenerateInviteLink } = useInviteLinks(activeChat);
+  const { members, changeRole } = useMembers(activeChat);
 
   // Message actions
   const [replyTo, setReplyTo] = useState<Message | null>(null);
@@ -229,21 +240,13 @@ const DexsterChat: React.FC = () => {
 
   // ========= SEND GIF =========
   const sendGif = useCallback(async (gifUrl: string) => {
-    addOptimisticMessage({
-      id: `gif_${Date.now()}`,
-      chatId: activeChat,
-      senderId: userIdStr,
-      senderName: userName,
-      text: '',
-      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-      date: new Date().toISOString().split('T')[0],
-      isOwn: true,
-      read: true,
+    await apiSendMessage({
+      encryptedContent: gifUrl,
+      clientMsgId: crypto.randomUUID(),
       type: 'gif',
-      gifUrl,
     });
     setReplyTo(null);
-  }, [activeChat, userIdStr, userName, addOptimisticMessage]);
+  }, [apiSendMessage]);
 
   // ========= EDIT =========
   const saveEdit = useCallback(async (text: string) => {
@@ -269,22 +272,33 @@ const DexsterChat: React.FC = () => {
   const handleForward = useCallback(async (toChatId: string) => {
     const msgsToForward = forwardMsg ? [forwardMsg] : Array.from(selectedMessages).map(id => chatMessages.find(m => m.id === id)).filter(Boolean) as Message[];
 
-    for (const msg of msgsToForward) {
-      addOptimisticMessage({
-        ...msg,
-        id: `fwd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        chatId: toChatId,
-        isOwn: true,
-        senderId: userIdStr,
-        senderName: userName,
-        forwarded: { from: msg.senderName },
-        replyTo: undefined,
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        date: new Date().toISOString().split('T')[0],
-        read: true,
-        reactions: [],
-        pinned: false,
-      });
+    try {
+      for (const msg of msgsToForward) {
+        await api.post('/messages/forward', {
+          messageId: Number(msg.id),
+          toConversationId: Number(toChatId),
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['messages', toChatId] });
+    } catch {
+      // Fallback: optimistic only
+      for (const msg of msgsToForward) {
+        addOptimisticMessage({
+          ...msg,
+          id: `fwd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          chatId: toChatId,
+          isOwn: true,
+          senderId: userIdStr,
+          senderName: userName,
+          forwarded: { from: msg.senderName },
+          replyTo: undefined,
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          date: new Date().toISOString().split('T')[0],
+          read: true,
+          reactions: [],
+          pinned: false,
+        });
+      }
     }
 
     setForwardMsg(null);
@@ -292,7 +306,7 @@ const DexsterChat: React.FC = () => {
     setSelectedMessages(new Set());
     setBulkForwardTarget(false);
     showToast(`Message${msgsToForward.length > 1 ? 's' : ''} forwarded`);
-  }, [forwardMsg, selectedMessages, chatMessages, showToast, userIdStr, userName, addOptimisticMessage]);
+  }, [forwardMsg, selectedMessages, chatMessages, showToast, userIdStr, userName, addOptimisticMessage, queryClient]);
 
   // ========= PIN =========
   const handlePin = useCallback((msg: Message) => {
@@ -344,11 +358,8 @@ const DexsterChat: React.FC = () => {
   }, [markRead]);
 
   const markUnread = useCallback((id: string) => {
-    // No direct API — optimistic update
-    queryClient.setQueryData<Chat[]>(['conversations'], old =>
-      old?.map(c => c.id === id ? { ...c, markedUnread: true, unread: Math.max(c.unread, 1) } : c)
-    );
-  }, [queryClient]);
+    apiMarkUnread(id);
+  }, [apiMarkUnread]);
 
   const archiveChat = useCallback((id: string) => {
     archiveConversation({ id, archived: true });
@@ -365,49 +376,57 @@ const DexsterChat: React.FC = () => {
   }, [archiveConversation, showToast]);
 
   const blockUser = useCallback(async (id: string) => {
+    blockConversation(id);
     if (activeChat === id) {
       const remaining = visibleChats.filter(c => c.id !== id);
       setActiveChat(remaining[0]?.id || '');
     }
     showToast('User blocked');
-  }, [activeChat, visibleChats, showToast]);
+  }, [activeChat, visibleChats, showToast, blockConversation]);
 
-  const unblockUser = useCallback(async (_id: string) => {
+  const unblockUser = useCallback(async (id: string) => {
+    unblockConversation(id);
     showToast('User unblocked');
-  }, [showToast]);
+  }, [showToast, unblockConversation]);
 
   const leaveChat = useCallback((id: string) => {
     leaveConversation(id);
     showToast('You left the chat');
   }, [leaveConversation, showToast]);
 
-  // ========= BOOKMARKS (localStorage per plan) =========
+  // ========= BOOKMARKS (localStorage) =========
   const bookmarkMessage = useCallback((msg: Message) => {
-    // Saved Messages is a local feature (localStorage/IndexedDB)
-    showToast('Saved to bookmarks');
+    try {
+      const stored = JSON.parse(localStorage.getItem('dexster_bookmarks') || '[]');
+      const exists = stored.some((b: any) => b.id === msg.id);
+      if (exists) {
+        const filtered = stored.filter((b: any) => b.id !== msg.id);
+        localStorage.setItem('dexster_bookmarks', JSON.stringify(filtered));
+        showToast('Removed from bookmarks');
+      } else {
+        stored.push({ id: msg.id, chatId: msg.chatId, text: msg.text, senderName: msg.senderName, time: msg.time, date: msg.date, savedAt: new Date().toISOString() });
+        localStorage.setItem('dexster_bookmarks', JSON.stringify(stored));
+        showToast('Saved to bookmarks');
+      }
+    } catch {
+      showToast('Saved to bookmarks');
+    }
   }, [showToast]);
 
-  // ========= TRANSLATE (not available yet per plan) =========
+  // ========= TRANSLATE (not available yet) =========
   const translateMessage = useCallback((msgId: string) => {
-    // TODO: Translation endpoint not implemented on server yet
     showToast('Translation not available yet');
   }, [showToast]);
 
-  // ========= POLLS (local, sent as encrypted content) =========
-  const createPoll = useCallback((question: string, options: string[], multiChoice: boolean, quizMode: boolean, correctOption?: number, explanation?: string) => {
-    const pollMsg: Message = {
-      id: `poll_${Date.now()}`, chatId: activeChat, senderId: userIdStr, senderName: userName, text: '',
-      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-      date: new Date().toISOString().split('T')[0], isOwn: true, read: false, type: 'poll',
-      pollData: {
-        question,
-        options: options.map(t => ({ text: t, voters: [] })),
-        multiChoice, quizMode, correctOption, explanation,
-      },
-    };
-    addOptimisticMessage(pollMsg);
+  // ========= POLLS =========
+  const createPoll = useCallback(async (question: string, options: string[], multiChoice: boolean, quizMode: boolean, correctOption?: number, explanation?: string) => {
+    await apiSendMessage({
+      encryptedContent: JSON.stringify({ question, options, multiChoice, quizMode, correctOption, explanation }),
+      clientMsgId: crypto.randomUUID(),
+      type: 'poll',
+    });
     setShowPollModal(false);
-  }, [activeChat, userIdStr, userName, addOptimisticMessage]);
+  }, [apiSendMessage]);
 
   const votePoll = useCallback((msgId: string, optionIndex: number) => {
     queryClient.setQueryData<Message[]>(['messages', activeChat], old =>
@@ -427,19 +446,18 @@ const DexsterChat: React.FC = () => {
         return { ...m, pollData: pd };
       })
     );
+    // Also send vote to API
+    api.post(`/messages/${msgId}/poll-vote`, { optionIndex }).catch(() => {});
   }, [activeChat, userIdStr, queryClient]);
 
   // ========= DICE =========
-  const rollDice = useCallback((emoji: string) => {
-    const value = Math.floor(Math.random() * 6) + 1;
-    const diceMsg: Message = {
-      id: `dice_${Date.now()}`, chatId: activeChat, senderId: userIdStr, senderName: userName, text: '',
-      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-      date: new Date().toISOString().split('T')[0], isOwn: true, read: false, type: 'dice',
-      diceResult: { emoji, value },
-    };
-    addOptimisticMessage(diceMsg);
-  }, [activeChat, userIdStr, userName, addOptimisticMessage]);
+  const rollDice = useCallback(async (emoji: string) => {
+    await apiSendMessage({
+      encryptedContent: JSON.stringify({ emoji }),
+      clientMsgId: crypto.randomUUID(),
+      type: 'dice',
+    });
+  }, [apiSendMessage]);
 
   // ========= COMMENTS (local) =========
   const addComment = useCallback((postId: string, text: string, replyToComment?: { senderName: string; text: string }) => {
@@ -460,16 +478,22 @@ const DexsterChat: React.FC = () => {
 
   // ========= SCHEDULED MESSAGES =========
   const scheduleMessage = useCallback(async (text: string, scheduledFor: Date) => {
-    const msg: Message = {
-      id: `sched_${Date.now()}`, chatId: activeChat, senderId: userIdStr, senderName: userName, text,
-      time: scheduledFor.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-      date: scheduledFor.toISOString().split('T')[0], isOwn: true, read: false, type: 'message',
-      scheduled: true, scheduledTime: scheduledFor.toLocaleString(),
-    };
-    addOptimisticMessage(msg);
-    showToast(`Message scheduled for ${scheduledFor.toLocaleString()}`);
+    try {
+      await api.post('/messages/e2e/schedule', {
+        conversationId: Number(activeChat),
+        encryptedContent: text,
+        scheduledFor: scheduledFor.toISOString(),
+        clientMsgId: crypto.randomUUID(),
+        nonce: '',
+        senderKeyVersion: 0,
+        signalMessageType: 2,
+      });
+      showToast(`Message scheduled for ${scheduledFor.toLocaleString()}`);
+    } catch {
+      showToast('Failed to schedule message');
+    }
     setShowScheduleModal(false);
-  }, [activeChat, userIdStr, userName, addOptimisticMessage, showToast]);
+  }, [activeChat, showToast]);
 
   // ========= MULTI-SELECT =========
   const toggleSelectMessage = useCallback((msgId: string) => {
@@ -535,64 +559,82 @@ const DexsterChat: React.FC = () => {
   }, [apiCreateFolder, showToast]);
 
   const moveToFolder = useCallback((chatId: string, folderId: string) => {
-    // TODO: API endpoint for moving chat to folder
+    apiMoveToFolder({ chatId, folderId });
     showToast('Moved to folder');
-  }, [showToast]);
+  }, [apiMoveToFolder, showToast]);
 
   // ========= CLEAR HISTORY =========
   const clearHistory = useCallback((forAll: boolean) => {
-    // Optimistic: clear local messages cache
-    queryClient.setQueryData<Message[]>(['messages', activeChat], []);
+    apiClearHistory({ id: activeChat, forAll });
     setShowClearHistory(false);
     showToast('History cleared');
-  }, [activeChat, queryClient, showToast]);
+  }, [activeChat, apiClearHistory, showToast]);
 
   // ========= UPDATE CHANNEL/GROUP SETTINGS =========
-  const updateChannelSettings = useCallback(async (_settings: Partial<Chat>) => {
+  const updateChannelSettings = useCallback(async (settings: Partial<Chat>) => {
+    await updateSettings({ id: activeChat, settings: settings as Record<string, unknown> });
     setShowEditChannel(false);
     showToast('Channel settings updated');
-  }, [showToast]);
+  }, [activeChat, updateSettings, showToast]);
 
-  const updateGroupSettings = useCallback(async (_settings: Partial<Chat>) => {
+  const updateGroupSettings = useCallback(async (settings: Partial<Chat>) => {
+    await updateSettings({ id: activeChat, settings: settings as Record<string, unknown> });
     setShowEditGroup(false);
     showToast('Group settings updated');
-  }, [showToast]);
+  }, [activeChat, updateSettings, showToast]);
 
   // ========= INVITE LINKS =========
   const createInviteLink = useCallback(async (_maxUses?: number) => {
-    showToast('Invite link created');
-  }, [showToast]);
+    try {
+      await apiGenerateInviteLink();
+      showToast('Invite link created');
+    } catch {
+      showToast('Failed to create invite link');
+    }
+  }, [apiGenerateInviteLink, showToast]);
 
-  const revokeInviteLink = useCallback(async (_linkId: string) => {
-    showToast('Invite link revoked');
-  }, [showToast]);
+  const revokeInviteLink = useCallback(async (linkId: string) => {
+    try {
+      await api.delete(`/messages/conversations/${activeChat}/invite-link/${linkId}`);
+      showToast('Invite link revoked');
+    } catch {
+      showToast('Failed to revoke invite link');
+    }
+  }, [activeChat, showToast]);
 
   // ========= ADMIN MANAGEMENT =========
-  const promoteAdmin = useCallback(async (_adminUserId: string, _title: string) => {
-    showToast('Admin updated');
-  }, [showToast]);
+  const promoteAdmin = useCallback(async (adminUserId: string, _title: string) => {
+    changeRole({ userId: Number(adminUserId), role: 'admin' });
+    showToast('Admin promoted');
+  }, [changeRole, showToast]);
 
-  const demoteAdmin = useCallback(async (_adminUserId: string) => {
+  const demoteAdmin = useCallback(async (adminUserId: string) => {
+    changeRole({ userId: Number(adminUserId), role: 'member' });
     showToast('Admin demoted');
-  }, [showToast]);
+  }, [changeRole, showToast]);
 
   // ========= AUTO-DELETE =========
-  const setAutoDelete = useCallback(async (_chatId: string, timer: number) => {
+  const setAutoDelete = useCallback(async (chatId: string, timer: number) => {
+    apiSetAutoDelete({ id: chatId, timer });
     setShowAutoDeleteDialog(false);
     showToast(timer ? `Auto-delete set to ${timer < 86400 ? `${timer / 3600}h` : timer < 604800 ? `${timer / 86400} day(s)` : `${timer / 604800} week(s)`}` : 'Auto-delete disabled');
-  }, [showToast]);
+  }, [apiSetAutoDelete, showToast]);
 
   // ========= COPY LINK =========
   const copyMessageLink = useCallback((msg: Message) => {
-    navigator.clipboard.writeText(`t.me/dexster/${msg.chatId}/${msg.id}`);
+    const baseUrl = window.location.origin;
+    navigator.clipboard.writeText(`${baseUrl}/chat/${msg.chatId}/${msg.id}`);
     showToast('Link copied');
   }, [showToast]);
 
   // ========= REPORT =========
-  const handleReport = useCallback(async (_reason: string) => {
+  const handleReport = useCallback(async (reason: string) => {
+    try {
+      await reportConversation({ conversationId: reportTarget || activeChat, reason });
+    } catch { /* ignore */ }
     setReportTarget(null);
     showToast('Report submitted. Thank you.');
-  }, [showToast]);
+  }, [reportConversation, reportTarget, activeChat, showToast]);
 
   // ========= CREATE GROUP =========
   const createGroup = useCallback(async (name: string, memberIds: string[], description: string) => {
