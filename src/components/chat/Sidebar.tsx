@@ -4,6 +4,9 @@ import ContextMenu, { ContextMenuItem } from './ContextMenu';
 import { Search, Edit3, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import MobileBottomNav, { MobileTab } from './MobileBottomNav';
 import NotificationBell from './NotificationBell';
+import ContactsTab from './ContactsTab';
+import SavedMessagesTab from './SavedMessagesTab';
+import SettingsTab from './SettingsTab';
 
 interface SidebarProps {
   chats: Chat[];
@@ -318,31 +321,19 @@ const Sidebar: React.FC<SidebarProps> = ({
         </>
       )}
 
-      {/* Contacts tab placeholder */}
+      {/* Contacts tab */}
       {isMobile && mobileTab === 'contacts' && (
-        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3 px-6">
-          <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center text-3xl">👤</div>
-          <span className="text-sm font-medium">Contacts</span>
-          <span className="text-xs text-center">Your contacts will appear here</span>
-        </div>
+        <ContactsTab chats={chats} onSelectChat={onSelectChat} onNewChat={onNewChat} />
       )}
 
-      {/* Saved tab placeholder */}
+      {/* Saved Messages tab */}
       {isMobile && mobileTab === 'saved' && (
-        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3 px-6">
-          <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center text-3xl">🔖</div>
-          <span className="text-sm font-medium">Saved Messages</span>
-          <span className="text-xs text-center">Your bookmarked messages will appear here</span>
-        </div>
+        <SavedMessagesTab onNavigateToMessage={(chatId) => onSelectChat(chatId)} />
       )}
 
-      {/* Settings tab placeholder */}
+      {/* Settings tab */}
       {isMobile && mobileTab === 'settings' && (
-        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3 px-6">
-          <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center text-3xl">⚙️</div>
-          <span className="text-sm font-medium">Settings</span>
-          <span className="text-xs text-center">App settings coming soon</span>
-        </div>
+        <SettingsTab />
       )}
 
       {contextMenu && (
