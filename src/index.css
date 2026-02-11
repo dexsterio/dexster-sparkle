@@ -4,50 +4,50 @@
 
 @layer base {
   :root {
-    --background: 240 25% 5%;
-    --foreground: 240 20% 92%;
+    --background: 0 0% 3%;
+    --foreground: 0 0% 93%;
 
-    --card: 240 25% 8%;
-    --card-foreground: 240 20% 92%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 93%;
 
-    --popover: 240 30% 10%;
-    --popover-foreground: 240 20% 92%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 93%;
 
-    --primary: 220 15% 38%;
+    --primary: 220 12% 42%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 12% 48%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 240 15% 18%;
-    --muted-foreground: 240 10% 55%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 50%;
 
-    --accent: 220 15% 38%;
+    --accent: 220 12% 42%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 55% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 10% 12%;
-    --input: 240 15% 18%;
-    --ring: 220 15% 38%;
+    --border: 0 0% 12%;
+    --input: 0 0% 13%;
+    --ring: 220 12% 42%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 240 25% 8%;
-    --sidebar-foreground: 240 20% 92%;
-    --sidebar-primary: 220 15% 38%;
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 0 0% 93%;
+    --sidebar-primary: 220 12% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 38%;
+    --sidebar-accent: 220 12% 42%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 240 10% 12%;
-    --sidebar-ring: 220 15% 38%;
+    --sidebar-border: 0 0% 12%;
+    --sidebar-ring: 220 12% 42%;
 
     --dex-online: 160 63% 36%;
     --dex-warning: 45 70% 55%;
-    --dex-bubble-other: 240 20% 14%;
-    --dex-surface: 240 25% 10%;
-    --dex-hover: 240 10% 14%;
+    --dex-bubble-other: 0 0% 11%;
+    --dex-surface: 0 0% 7%;
+    --dex-hover: 0 0% 10%;
 
     --color-brand-turquoise: 165 85% 45%;
   }
