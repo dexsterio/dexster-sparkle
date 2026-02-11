@@ -1,112 +1,139 @@
 
-# Comprehensive Mobile Responsive Overhaul
+
+# Remove All Mock Data & Prepare for Production Backend Integration
 
 ## Overview
-Make the entire Dexster chat application fully responsive and optimized for all mobile screen sizes (320px-414px and everything in between). This involves fixing modal overflow issues, improving touch targets, ensuring safe-area compliance, and polishing every mobile view.
+Systematically remove all mock/hardcoded data from every file, replace with proper empty states, loading states, and clear placeholder comments guiding your backend developer on exactly where and how to integrate real data.
 
-## Current State
-The app already has a basic mobile implementation:
-- View-stack model (sidebar OR chat, not both)
-- Bottom navigation bar (Chats, Contacts, Saved, Settings)
-- Sheet-based menus for the chat header
-- Pull-to-refresh, swipe-to-reply
-- Safe-area inset handling in some areas
+## Files to Modify
 
-## Issues to Fix
+### 1. src/data/mockData.ts -- DELETE ENTIRE FILE
+This file contains all fake users, conversations, messages, and folders. It will be completely removed.
 
-### 1. Modals overflow on small screens
-All modals in `Modals.tsx` use fixed pixel widths (`w-[380px]`, `w-[400px]`, `w-[480px]`) that overflow on screens narrower than 400px (e.g. iPhone SE at 320px, Galaxy S at 360px).
+### 2. src/contexts/AuthContext.tsx -- Real Auth Flow Placeholder
+Current: Imports `MOCK_USER` and sets it as default state, uses `'mock-token'` for WebSocket.
 
-**Fix**: Replace all fixed modal widths with responsive classes:
-- `w-[380px]` becomes `w-[calc(100vw-2rem)] max-w-[380px]`
-- `w-[400px]` becomes `w-[calc(100vw-2rem)] max-w-[400px]`
-- `w-[480px]` becomes `w-[calc(100vw-2rem)] max-w-[480px]`
+Changes:
+- Remove `MOCK_USER` import
+- Default `currentUser` to `null` (unauthenticated)
+- Default `isLoading` to `true` (app starts in loading state)
+- Add `wsToken` state (default `null`)
+- Add detailed placeholder comments in `refreshSession` showing the backend dev exactly what to call:
+  - `GET /api/auth/me` to fetch current user session
+  - Set `wsToken` from response
+- Add placeholder in `logout`:
+  - `POST /api/auth/logout`
+  - Clear state
+- Add an `useEffect` skeleton that calls `refreshSession()` on mount (auto-login from existing session cookie)
+- Add a `login` function placeholder for Solana wallet SIWS flow:
+  - `POST /api/auth/challenge` to get nonce
+  - Sign with wallet
+  - `POST /api/auth/verify` with signature
+  - Set user + wsToken from response
 
-This ensures modals never exceed screen width minus 16px padding on each side.
+### 3. src/hooks/useConversations.ts -- Remove Mock Fallback
+Current: Falls back to `MOCK_CHATS` on API error, defaults to `MOCK_CHATS`.
 
-### 2. Sidebar last-message truncation uses fixed width
-In `Sidebar.tsx`, `max-w-[200px]` is hardcoded for last-message previews. On wider phones this wastes space; on narrow phones it could still overflow.
+Changes:
+- Remove `MOCK_CHATS` import
+- On API error: return empty array `[]` instead of mock data
+- Default `conversations` to `query.data ?? []`
+- Add comment: `// BACKEND: GET /messages/conversations returns ApiConversation[]`
 
-**Fix**: Replace `max-w-[200px]` with `max-w-[60vw]` on mobile and keep `max-w-[200px]` on desktop via conditional class.
+### 4. src/hooks/useMessages.ts -- Remove Mock Fallback
+Current: Falls back to `MOCK_MESSAGES[conversationId]` on error, defaults to mock.
 
-### 3. CommentsPanel needs safe-area bottom padding
-The comments input at the bottom of `CommentsPanel.tsx` does not account for the phone's bottom safe area (notch/home indicator).
+Changes:
+- Remove `MOCK_MESSAGES` import
+- On API error: return `[]`
+- Default `messages` to `query.data ?? []`
+- Add comment: `// BACKEND: GET /messages/conversations/:id/messages?limit=100 returns ApiMessage[]`
 
-**Fix**: Add `style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}` to the input container.
+### 5. src/hooks/useFolders.ts -- Remove Mock Fallback
+Current: Falls back to `MOCK_FOLDERS` on error, defaults to mock.
 
-### 4. InfoPanel mobile Sheet lacks safe-area bottom
-The mobile InfoPanel rendered as a Sheet needs bottom safe-area padding for the danger-zone buttons.
+Changes:
+- Remove `MOCK_FOLDERS` import
+- On API error: return `[]`
+- Default `folders` to `query.data ?? []`
+- Add comment: `// BACKEND: GET /messages/folders returns ApiFolder[]`
 
-**Fix**: Add safe-area bottom padding to the InfoPanel's bottom section.
+### 6. src/components/chat/MyProfilePanel.tsx -- Remove Mock Balance
+Current: Has `const mockBalance = '12.847 SOL'` hardcoded.
 
-### 5. Toast notification needs safe-area awareness
-The toast at the bottom of `DexsterChat.tsx` uses `bottom-6` which can be hidden behind the home indicator on newer phones.
+Changes:
+- Remove `mockBalance` constant
+- Replace with a comment and placeholder:
+  - `// BACKEND: Fetch wallet balance from Solana RPC or backend endpoint`
+  - `// e.g. GET /api/wallet/balance => { balance: string }`
+  - Display `'--'` or a loading spinner until balance is fetched
+- Add `handleSave` placeholder to call `PUT /api/profile/me` with updated displayName, bio, avatar
 
-**Fix**: Change to `bottom-20` on mobile (above the bottom nav) or use `env(safe-area-inset-bottom)` offset.
+### 7. src/components/chat/DexsterChat.tsx -- Remove Local Mock Fallbacks
+Current: Lines 673-688 and 705-720 create mock group/channel objects locally when API fails.
 
-### 6. Context menu on mobile should be a bottom sheet
-Currently `ContextMenu.tsx` renders as a floating positioned menu. On mobile, long-pressing a chat item can cause the context menu to clip off-screen.
+Changes:
+- Remove the catch-block mock fallback for `createGroup` -- instead show error toast: `'Failed to create group'`
+- Remove the catch-block mock fallback for `createChannel` -- instead show error toast: `'Failed to create channel'`
+- Add comments explaining which endpoints are called:
+  - `// BACKEND: POST /messages/conversations { type: 'group', ... }`
+  - `// BACKEND: POST /messages/conversations { type: 'channel', ... }`
 
-**Fix**: When `isMobile` is true, render the context menu as a bottom Sheet instead of a floating positioned menu. This requires passing `isMobile` prop to the ContextMenu usage in Sidebar.
+### 8. src/components/chat/Sidebar.tsx -- Add Empty State
+When `conversations` is empty (no mock data), the sidebar will be blank. Add a proper empty state:
+- "No conversations yet" message with a button to start a new chat
+- This ensures the UI isn't broken when there's no data
 
-### 7. Saved messages delete button invisible on mobile
-In `SavedMessagesTab.tsx`, the delete button uses `opacity-0 group-hover:opacity-100` which never triggers on touch devices.
+### 9. src/components/chat/ChatArea.tsx -- Add Empty State
+When no chat is selected or messages array is empty:
+- Show "Select a conversation to start chatting" placeholder
+- When messages is empty: show "No messages yet. Say hello!" centered text
 
-**Fix**: Change to always show the button on mobile, or use `opacity-100 md:opacity-0 md:group-hover:opacity-100`.
+## Summary of Mock Data References to Remove
 
-### 8. Chat input area needs keyboard-aware spacing
-When the virtual keyboard opens on mobile, the input area should remain visible and not get hidden behind the keyboard.
+| File | Mock Reference | Replace With |
+|------|---------------|-------------|
+| `mockData.ts` | Entire file | Delete |
+| `AuthContext.tsx` | `MOCK_USER`, `'mock-token'` | `null`, real auth flow |
+| `useConversations.ts` | `MOCK_CHATS` (import + 2 usages) | `[]` |
+| `useMessages.ts` | `MOCK_MESSAGES` (import + 2 usages) | `[]` |
+| `useFolders.ts` | `MOCK_FOLDERS` (import + 2 usages) | `[]` |
+| `MyProfilePanel.tsx` | `mockBalance` | Backend placeholder |
+| `DexsterChat.tsx` | Mock group/channel creation fallback | Error toast |
 
-**Fix**: Add `visualViewport` resize listener to adjust the input bar positioning when the keyboard is open. Use CSS `env(keyboard-inset-height)` or JS fallback.
+## Backend Integration Comments Pattern
+Every placeholder will follow this pattern for consistency:
 
-### 9. Missing viewport meta tag attributes
-Ensure `index.html` has proper mobile viewport settings including `viewport-fit=cover` for notch devices and `user-scalable=no` to prevent unwanted zoom on input focus.
-
-### 10. CSS touch-action and overscroll behavior
-Add global CSS rules to prevent browser bounce/overscroll on mobile and improve touch responsiveness.
-
-## Files Modified
-
-1. **src/components/chat/Modals.tsx** -- Make all modal widths responsive with `w-[calc(100vw-2rem)] max-w-[Xpx]`
-2. **src/components/chat/Sidebar.tsx** -- Dynamic max-width for last-message text; pass isMobile to context menu
-3. **src/components/chat/CommentsPanel.tsx** -- Safe-area bottom padding on input
-4. **src/components/chat/InfoPanel.tsx** -- Safe-area bottom padding
-5. **src/components/chat/DexsterChat.tsx** -- Mobile-aware toast positioning
-6. **src/components/chat/SavedMessagesTab.tsx** -- Always-visible delete button on mobile
-7. **src/components/chat/ContextMenu.tsx** -- Bottom-sheet mode for mobile
-8. **src/components/chat/ChatArea.tsx** -- Keyboard-aware input positioning
-9. **index.html** -- Viewport meta improvements
-10. **src/index.css** -- Touch-action, overscroll-behavior, keyboard-height CSS
-
-## Technical Details
-
-### Modal Responsive Pattern
 ```text
-Before:  w-[380px]
-After:   w-[calc(100vw-2rem)] max-w-[380px]
+// ══════════════════════════════════════════════════════════════
+// BACKEND TODO: [Description of what needs to be implemented]
+// Endpoint: [METHOD /path]
+// Request: { field: type, ... }
+// Response: { field: type, ... }
+// Notes: [Any additional context]
+// ══════════════════════════════════════════════════════════════
 ```
 
-### Context Menu Mobile Pattern
-When isMobile is true, the ContextMenu component will render using the Sheet component (bottom-sheet) rather than absolutely positioned div. The items array stays the same.
+## What Stays Unchanged
+- `src/lib/api.ts` -- Already production-ready (real API client with CSRF, refresh, etc.)
+- `src/lib/websocket.ts` -- Already production-ready
+- `src/lib/csrf.ts` -- Already production-ready
+- `src/lib/signal/` -- Already has proper TODO comments
+- `src/hooks/useMembers.ts` -- No mock data (already pure API)
+- `src/hooks/useNotifications.ts` -- No mock data
+- `src/hooks/useUnreadCount.ts` -- No mock data
+- `src/hooks/useMessageSearch.ts` -- No mock data
+- `src/hooks/useUserSearch.ts` -- No mock data
+- `src/hooks/useInviteLinks.ts` -- No mock data
+- `src/hooks/useMediaUpload.ts` -- No mock data
+- `src/hooks/useUserProfile.ts` -- No mock data
+- `src/contexts/WebSocketContext.tsx` -- Already production-ready (uses real wsToken from AuthContext)
 
-### Keyboard Handling
-Add a `useEffect` in ChatArea that listens to `window.visualViewport.resize` events and applies a CSS custom property `--keyboard-offset` to push the input bar above the keyboard.
+## Result
+After these changes:
+- App starts in a loading/unauthenticated state (no fake data visible)
+- All hooks return empty arrays when API is unreachable
+- Every integration point has clear comments for the backend developer
+- The UI handles empty states gracefully
+- The backend developer has a clear roadmap of every endpoint needed
 
-### CSS Additions (index.css)
-```text
-html, body {
-  overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-@supports (padding-bottom: env(keyboard-inset-height)) {
-  .chat-input-bar {
-    padding-bottom: calc(env(keyboard-inset-height, 0px));
-  }
-}
-```
-
-### Viewport Meta (index.html)
-```text
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-```
