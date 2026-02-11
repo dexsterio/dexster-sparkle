@@ -1,67 +1,59 @@
 
 
-# Dexster Brand Identity + Chat Theme Update
+# UI Color & Readability Refinement -- True Black, Clean, Professional
 
 ## Overview
-Implement the official DEXSTER brand logo with dual glitch effects (static on "DEX", animated on "STER"), the turquoise brand color, Orbitron font, and update the entire chat UI color scheme to match the brand identity -- shifting from purple to turquoise as the primary accent.
+Shift the entire theme to a true black base with improved text contrast, better readability on chat messages, and refined micro-details throughout. No glow effects. No flashy colors. Just clean, dark, professional.
 
-## What Changes
+## Color Changes (index.css)
 
-### 1. New Reusable Logo Component
-A `DexsterLogo` component with size variants (sm/md/lg/xl) that renders "DEX" in turquoise with a static glitch effect and "STER" in white with an animated glitch effect using CSS pseudo-elements and clip-path.
+### Backgrounds -- shift to true black
+- `--background`: from `240 25% 5%` to `0 0% 3%` (near-black, #080808)
+- `--card`: from `240 25% 8%` to `0 0% 6%` (#0F0F0F)
+- `--popover`: from `240 30% 10%` to `0 0% 8%` (#141414)
+- `--dex-surface`: from `240 25% 10%` to `0 0% 7%` (#121212)
+- `--dex-hover`: from `240 10% 14%` to `0 0% 10%` (#1A1A1A)
+- `--dex-bubble-other`: from `240 20% 14%` to `0 0% 11%` (#1C1C1C)
+- `--muted`: from `240 15% 18%` to `0 0% 14%` (#242424)
+- `--input`: from `240 15% 18%` to `0 0% 13%` (#212121)
+- `--border`: from `240 10% 12%` to `0 0% 12%` (#1F1F1F)
 
-### 2. Updated Color Theme
-The primary/accent colors shift from purple (`hsl(252 75% 64%)`) to turquoise (`hsl(165 85% 45%)`). This affects:
-- Active chat highlights, folder tabs, badges
-- Message bubbles (own messages gradient)
-- Focus rings, buttons, links
-- Sidebar accents, online indicators
-- Search highlights, scrollbar hover states
+### Text -- higher contrast
+- `--foreground`: from `240 20% 92%` to `0 0% 93%` (#EDEDED) -- pure neutral white
+- `--muted-foreground`: from `240 10% 55%` to `0 0% 50%` (#808080) -- neutral gray, easier to read
 
-### 3. Logo Placement
-The new glitch logo replaces the current hamburger-menu area branding and appears in:
-- Sidebar header (next to hamburger icon)
-- Hamburger drawer profile section
+### Primary/accent -- keep as muted steel but slightly brighter for better visibility
+- `--primary`: from `220 15% 38%` to `220 12% 42%` -- subtle steel, slightly more visible
+- `--secondary`: keep at `220 12% 48%`
 
-### 4. Font Addition
-Orbitron font imported for the logo text only. Outfit remains the main UI font.
+### Sidebar vars -- match new blacks
+- `--sidebar-background`: match `--card`
+- `--sidebar-border`: match `--border`
 
----
+## Own Message Bubble Gradient (MessageBubble.tsx)
+The own-message gradient currently references hardcoded `hsl(252,60%,48%)` (purple). Change to use `--primary` variable so it matches the muted steel theme:
+- `from-primary to-[hsl(220,15%,32%)]` -- dark steel gradient, no purple
 
-## Technical Details
+Also in dice messages: same fix for the hardcoded purple gradient.
 
-### New File: `src/components/chat/DexsterLogo.tsx`
-Reusable component with size prop (sm/md/lg/xl) using `font-orbitron`, `static-glitch` on "DEX", and `animated-glitch` on "STER" with `data-text` attributes for pseudo-element content.
+## Text Readability Improvements (MessageBubble.tsx)
+- Message text size: ensure `text-sm` (14px) is used consistently -- currently correct
+- Time stamps: keep `text-[11px]` but ensure neutral color
+- Sender names in groups: keep deterministic hue colors but increase lightness from 60% to 65% for better readability on black
+- Admin badges: ensure they read well against true black
 
-### File: `index.html`
-Add Orbitron font to the Google Fonts link (append `&family=Orbitron:wght@400;500;600;700;800;900`).
+## index.html Meta Colors
+- Change `#7c5cfc` (purple) to `#080808` (true black) in `theme-color` and `msapplication-TileColor`
 
-### File: `src/index.css`
-1. Add `@import url(...)` for Orbitron at the top (line 1)
-2. Add `--color-brand-turquoise: 165 85% 45%;` CSS variable
-3. Update `--primary` from `252 75% 64%` to `165 85% 45%` (turquoise)
-4. Update `--secondary` from `252 95% 80%` to `165 70% 60%` (lighter turquoise)
-5. Update `--accent`, `--ring`, `--sidebar-primary`, `--sidebar-accent`, `--sidebar-ring` to match
-6. Add the complete static-glitch CSS (clip-path polygon slices with +/-1px translateX)
-7. Add the complete animated-glitch CSS (glitchTop + glitchBottom keyframes with skew transforms)
-8. Update `--dex-online` stays the same (already turquoise-adjacent)
+## Files Modified
+1. **src/index.css** -- all CSS variable values updated to true-black neutral palette
+2. **src/components/chat/MessageBubble.tsx** -- remove hardcoded purple gradient, use primary-based steel gradient; improve sender color lightness
+3. **index.html** -- meta theme-color to black
 
-### File: `tailwind.config.ts`
-1. Add `orbitron: ['Orbitron', 'sans-serif']` to `fontFamily`
-2. Add `'brand-turquoise': 'hsl(var(--color-brand-turquoise))'` to colors
-
-### File: `src/components/chat/Sidebar.tsx`
-1. Import `DexsterLogo` component
-2. Replace the bare hamburger button area with hamburger + `<DexsterLogo size="sm" />` in the header
-3. In the hamburger drawer profile section, replace "Dexster User" heading or add the logo
-
-### File: `src/components/chat/MessageBubble.tsx`
-The own-message bubble gradient currently uses `from-primary to-secondary`. Since primary/secondary are now turquoise, the gradient automatically updates. The contrast-aware inline styles (white text on own bubbles) remain correct since turquoise is also a dark-enough background.
-
-### Files Modified
-1. `src/components/chat/DexsterLogo.tsx` (new)
-2. `index.html` (Orbitron font)
-3. `src/index.css` (brand color, glitch CSS, primary color update)
-4. `tailwind.config.ts` (orbitron font, brand-turquoise color)
-5. `src/components/chat/Sidebar.tsx` (use DexsterLogo)
+## What Does NOT Change
+- DexsterLogo component -- keeps its brand turquoise + glitch effects untouched
+- Font choices (Outfit, JetBrains Mono, Orbitron) -- stay the same
+- Layout structure -- unchanged
+- Animation keyframes -- unchanged
+- Glitch CSS -- unchanged
 
