@@ -1199,7 +1199,7 @@ const DexsterChat: React.FC = () => {
       />}
 
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-card border border-border text-sm text-foreground shadow-lg animate-[toastIn_0.2s_ease-out] z-50">
+        <div className={`fixed left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-card border border-border text-sm text-foreground shadow-lg animate-[toastIn_0.2s_ease-out] z-50 ${isMobile ? 'bottom-20' : 'bottom-6'}`} style={isMobile ? { marginBottom: 'env(safe-area-inset-bottom)' } : undefined}>
           {toast}
         </div>
       )}

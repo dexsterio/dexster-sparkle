@@ -117,7 +117,7 @@ const SavedMessagesTab: React.FC<SavedMessagesTabProps> = ({ onNavigateToMessage
               </div>
               <button
                 onClick={() => removeBookmark(bookmark.id)}
-                className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-destructive/10 transition-all flex-shrink-0"
+                className="p-1.5 rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-destructive/10 transition-all flex-shrink-0"
               >
                 <Trash2 size={14} className="text-destructive" />
               </button>

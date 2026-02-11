@@ -226,7 +226,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ chat, open, onClose, onMute, onBl
 
       {/* Danger Zone */}
       {!isSaved && (
-        <div className="px-4 pb-6 space-y-1">
+        <div className="px-4 pb-6 space-y-1" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
           {!isChannel && !isGroup && (
             <button onClick={chat.blocked ? onUnblock : onBlock}
               className="flex items-center gap-3 w-full py-2.5 text-sm text-destructive hover:bg-destructive/10 rounded-lg px-2 transition-colors">

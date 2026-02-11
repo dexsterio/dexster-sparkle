@@ -18,7 +18,7 @@ export const DeleteDialog: React.FC<DeleteDialogProps> = ({ message, chatName, o
   const [forAll, setForAll] = useState(false);
   return (
     <div className={MODAL_BACKDROP} onClick={onCancel}>
-      <div className={`${MODAL_CARD} p-6 w-[380px]`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[380px]`} onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-semibold text-foreground mb-2">Delete Message</h3>
         <p className="text-sm text-muted-foreground mb-4">Are you sure you want to delete this message?</p>
         {message.isOwn && (
@@ -48,7 +48,7 @@ export const ForwardModal: React.FC<ForwardModalProps> = ({ chats, onForward, on
   const filtered = chats.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
   return (
     <div className={MODAL_BACKDROP} onClick={onCancel}>
-      <div className={`${MODAL_CARD} p-5 w-[400px] max-h-[500px] flex flex-col`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-5 w-[calc(100vw-2rem)] max-w-[400px] max-h-[500px] flex flex-col`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-semibold text-foreground">Forward to...</h3>
           <button onClick={onCancel} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
@@ -153,7 +153,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({ onClose,
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-6 w-[440px] max-h-[85vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[440px] max-h-[85vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
         {/* Header with step indicator */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
@@ -377,7 +377,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onC
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-6 w-[440px] max-h-[85vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[440px] max-h-[85vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
         {/* Header with step indicator */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
@@ -614,7 +614,7 @@ export const PollCreationModal: React.FC<PollCreationModalProps> = ({ onClose, o
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-6 w-[420px] max-h-[600px] flex flex-col`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[420px] max-h-[600px] flex flex-col`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-foreground">📊 Create Poll</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
@@ -686,7 +686,7 @@ export const PinConfirmModal: React.FC<PinConfirmModalProps> = ({ message, onCon
   const [notify, setNotify] = useState(true);
   return (
     <div className={MODAL_BACKDROP} onClick={onCancel}>
-      <div className={`${MODAL_CARD} p-6 w-[380px]`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[380px]`} onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-semibold text-foreground mb-2">{message.pinned ? 'Unpin Message?' : 'Pin Message?'}</h3>
         <p className="text-sm text-muted-foreground mb-4 truncate">{message.text.slice(0, 80)}</p>
         {!message.pinned && (
@@ -717,7 +717,7 @@ export const ReportDialog: React.FC<ReportDialogProps> = ({ onReport, onCancel }
   const reasons = ['Spam', 'Violence', 'Pornography', 'Harassment', 'Fake account', 'Other'];
   return (
     <div className={MODAL_BACKDROP} onClick={onCancel}>
-      <div className={`${MODAL_CARD} p-6 w-[380px]`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[380px]`} onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-semibold text-foreground mb-4">Report</h3>
         <div className="space-y-2 mb-4">
           {reasons.map(r => (
@@ -751,7 +751,7 @@ export const MuteOptionsModal: React.FC<MuteOptionsModalProps> = ({ onMute, onCa
   ];
   return (
     <div className={MODAL_BACKDROP} onClick={onCancel}>
-      <div className={`${MODAL_CARD} p-6 w-[320px]`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[320px]`} onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-semibold text-foreground mb-4">🔕 Mute for...</h3>
         <div className="space-y-2">
           {options.map(o => (
@@ -783,7 +783,7 @@ export const SchedulePickerModal: React.FC<SchedulePickerModalProps> = ({ onSche
 
   return (
     <div className={MODAL_BACKDROP} onClick={onCancel}>
-      <div className={`${MODAL_CARD} p-6 w-[360px]`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[360px]`} onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-semibold text-foreground mb-4">🕐 Schedule Message</h3>
         <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Date</label>
         <input type="date" value={dateStr} onChange={e => setDateStr(e.target.value)}
@@ -819,7 +819,7 @@ export const FolderEditorModal: React.FC<FolderEditorModalProps> = ({ chats, onC
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-6 w-[420px] max-h-[550px] flex flex-col`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[420px] max-h-[550px] flex flex-col`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-foreground">New Folder</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
@@ -870,7 +870,7 @@ export const AutoDeleteDialog: React.FC<AutoDeleteDialogProps> = ({ currentTimer
   ];
   return (
     <div className={MODAL_BACKDROP} onClick={onCancel}>
-      <div className={`${MODAL_CARD} p-6 w-[320px]`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[320px]`} onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-semibold text-foreground mb-4">⏱️ Auto-delete Messages</h3>
         <div className="space-y-2">
           {options.map(o => (
@@ -901,7 +901,7 @@ export const ClearHistoryDialog: React.FC<ClearHistoryDialogProps> = ({ chatName
   const [forAll, setForAll] = useState(false);
   return (
     <div className={MODAL_BACKDROP} onClick={onCancel}>
-      <div className={`${MODAL_CARD} p-6 w-[380px]`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[380px]`} onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-semibold text-foreground mb-2">Clear History</h3>
         <p className="text-sm text-muted-foreground mb-4">Are you sure you want to delete all messages in <strong className="text-foreground">{chatName}</strong>?</p>
         {chatType === 'personal' && (
@@ -973,7 +973,7 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-0 w-[480px] max-h-[85vh] flex flex-col`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-0 w-[calc(100vw-2rem)] max-w-[480px] max-h-[85vh] flex flex-col`} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-3">
           <h3 className="text-base font-semibold text-foreground">Manage Channel</h3>
@@ -1294,7 +1294,7 @@ export const EditGroupModal: React.FC<EditGroupModalProps> = ({ chat, onSave, on
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-0 w-[480px] max-h-[85vh] flex flex-col`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-0 w-[calc(100vw-2rem)] max-w-[480px] max-h-[85vh] flex flex-col`} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-3">
           <h3 className="text-base font-semibold text-foreground">Manage Group</h3>
@@ -1601,7 +1601,7 @@ export const InviteLinksModal: React.FC<InviteLinksModalProps> = ({ inviteLinks,
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-6 w-[420px] max-h-[500px] flex flex-col`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[420px] max-h-[500px] flex flex-col`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-foreground">🔗 Invite Links</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
@@ -1699,7 +1699,7 @@ export const AdminManagementModal: React.FC<AdminManagementModalProps> = ({ chat
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-6 w-[440px] max-h-[700px] flex flex-col`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[440px] max-h-[700px] flex flex-col`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-foreground">👑 Administrators ({admins.length})</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
@@ -1809,7 +1809,7 @@ export const BannedUsersModal: React.FC<BannedUsersModalProps> = ({ bannedUsers,
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-6 w-[420px] max-h-[500px] flex flex-col`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[420px] max-h-[500px] flex flex-col`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-foreground">🚫 Banned Users ({bannedUsers.length})</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
@@ -1914,7 +1914,7 @@ export const MemberRestrictionsModal: React.FC<MemberRestrictionsModalProps> = (
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-6 w-[440px] max-h-[700px] flex flex-col`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[440px] max-h-[700px] flex flex-col`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-foreground">👤 Member Restrictions</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
@@ -1995,7 +1995,7 @@ export const LeaveConfirmDialog: React.FC<LeaveConfirmDialogProps> = ({ chatName
   const typeLabel = chatType === 'channel' ? 'channel' : 'group';
   return (
     <div className={MODAL_BACKDROP} onClick={onCancel}>
-      <div className={`${MODAL_CARD} p-6 w-[380px]`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[380px]`} onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-semibold text-foreground mb-2">Leave {typeLabel}?</h3>
         <p className="text-sm text-muted-foreground mb-4">Are you sure you want to leave <strong className="text-foreground">{chatName}</strong>? You won't be able to see new messages unless you rejoin.</p>
         <div className="flex justify-end gap-2">
@@ -2021,7 +2021,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onStartChat
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
-      <div className={`${MODAL_CARD} p-6 w-[420px] max-h-[500px] flex flex-col`} onClick={e => e.stopPropagation()}>
+      <div className={`${MODAL_CARD} p-6 w-[calc(100vw-2rem)] max-w-[420px] max-h-[500px] flex flex-col`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-foreground">New Chat</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
