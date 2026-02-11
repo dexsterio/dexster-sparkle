@@ -1,211 +1,102 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
-import signalManager from '@/lib/signal/signalManager';
+import { useState, useCallback } from 'react';
 import type { Message } from '@/types/chat';
-
-interface ApiMessage {
-  id: number;
-  conversationId: number;
-  senderId: number;
-  senderName?: string;
-  encryptedContent: string;
-  nonce: string;
-  senderKeyVersion: number;
-  signalMessageType: 2 | 3;
-  seqId: number;
-  clientMsgId: string;
-  entities?: Array<{ type: string; offset: number; length: number; userId?: number; url?: string }>;
-  imageUrl?: string;
-  sharedPostId?: number;
-  replyToId?: number;
-  isForwarded: boolean;
-  isDeleted: boolean;
-  isSystem: boolean;
-  expiresAt?: string;
-  scheduledAt?: string;
-  isPinned: boolean;
-  pinnedAt?: string;
-  pinnedBy?: number;
-  viewCount?: number;
-  editedAt?: string;
-  createdAt: string;
-}
-
-interface SendMessagePayload {
-  encryptedContent: string;
-  nonce?: string;
-  senderKeyVersion?: number;
-  signalMessageType?: 2 | 3;
-  replyToId?: number;
-  isForwarded?: boolean;
-  scheduledAt?: string;
-  clientMsgId?: string;
-}
-
-/**
- * Decrypt and map an API message to our frontend Message type.
- */
-async function mapApiMessage(msg: ApiMessage, currentUserId: number): Promise<Message> {
-  let decryptedText = '';
-
-  if (msg.isSystem) {
-    decryptedText = '';
-  } else if (msg.encryptedContent) {
-    try {
-      decryptedText = await signalManager.decrypt(
-        msg.senderId,
-        msg.encryptedContent,
-        msg.nonce,
-        msg.senderKeyVersion,
-        msg.signalMessageType,
-      );
-    } catch {
-      decryptedText = '[Unable to decrypt]';
-    }
-  }
-
-  const date = new Date(msg.createdAt);
-
-  return {
-    id: String(msg.id),
-    chatId: String(msg.conversationId),
-    senderId: String(msg.senderId),
-    senderName: msg.senderName || 'Unknown',
-    text: decryptedText,
-    time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-    date: date.toISOString().split('T')[0],
-    isOwn: msg.senderId === currentUserId,
-    read: true, // Will be updated via WS chat:read events
-    edited: !!msg.editedAt,
-    pinned: msg.isPinned,
-    type: msg.isSystem ? 'service' : 'message',
-    serviceText: msg.isSystem ? decryptedText : undefined,
-    views: msg.viewCount,
-    replyTo: msg.replyToId ? { messageId: String(msg.replyToId), senderName: '', text: '' } : undefined,
-    forwarded: msg.isForwarded ? { from: msg.senderName || 'Unknown' } : undefined,
-    scheduled: !!msg.scheduledAt,
-    scheduledTime: msg.scheduledAt,
-    autoDeleteAt: msg.expiresAt ? new Date(msg.expiresAt).getTime() : undefined,
-  };
-}
+import { MOCK_MESSAGES } from '@/data/mockData';
 
 export function useMessages(conversationId: string, currentUserId: number) {
-  const queryClient = useQueryClient();
-  const queryKey = ['messages', conversationId];
+  const [allMessages, setAllMessages] = useState<Record<string, Message[]>>(MOCK_MESSAGES);
 
-  const query = useQuery({
-    queryKey,
-    queryFn: async () => {
-      const data = await api.get<ApiMessage[]>(
-        `/messages/conversations/${conversationId}/messages?limit=50`
-      );
-      const messages = await Promise.all(
-        data.map(msg => mapApiMessage(msg, currentUserId))
-      );
-      return messages;
-    },
-    enabled: !!conversationId && !!currentUserId,
-    staleTime: 10_000,
-  });
+  const messages = allMessages[conversationId] ?? [];
 
-  // ── Send E2E message ──
-  const sendMutation = useMutation({
-    mutationFn: async (payload: SendMessagePayload) => {
-      return api.post<ApiMessage>(
-        `/messages/conversations/${conversationId}/messages/e2e`,
-        payload
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    },
-  });
+  const sendMessage = useCallback(async (payload: any) => {
+    const newMsg: Message = {
+      id: `msg_${Date.now()}`,
+      chatId: conversationId,
+      senderId: String(currentUserId),
+      senderName: 'Eljas',
+      text: payload.encryptedContent || 'Message',
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      date: new Date().toISOString().split('T')[0],
+      isOwn: true,
+      read: true,
+      type: 'message',
+    };
+    setAllMessages(prev => ({
+      ...prev,
+      [conversationId]: [...(prev[conversationId] || []), newMsg],
+    }));
+    return newMsg as any;
+  }, [conversationId, currentUserId]);
 
-  // ── Pin message ──
-  const pinMutation = useMutation({
-    mutationFn: async ({ messageId, pin }: { messageId: string; pin: boolean }) => {
-      if (pin) {
-        await api.put(`/messages/${messageId}/pin`);
-      } else {
-        await api.delete(`/messages/${messageId}/pin`);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    },
-  });
+  const pinMessage = useCallback(({ messageId, pin }: { messageId: string; pin: boolean }) => {
+    setAllMessages(prev => ({
+      ...prev,
+      [conversationId]: (prev[conversationId] || []).map(m =>
+        m.id === messageId ? { ...m, pinned: pin } : m
+      ),
+    }));
+  }, [conversationId]);
 
-  // ── Edit message ──
-  const editMutation = useMutation({
-    mutationFn: async ({ messageId, encryptedContent, nonce, senderKeyVersion, signalMessageType }: {
-      messageId: string;
-      encryptedContent: string;
-      nonce: string;
-      senderKeyVersion: number;
-      signalMessageType: 2 | 3;
-    }) => {
-      await api.put(`/messages/${messageId}`, { encryptedContent, nonce, senderKeyVersion, signalMessageType });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    },
-  });
+  const editMessage = useCallback(async (payload: any) => {
+    setAllMessages(prev => ({
+      ...prev,
+      [conversationId]: (prev[conversationId] || []).map(m =>
+        m.id === payload.messageId ? { ...m, text: payload.encryptedContent, edited: true } : m
+      ),
+    }));
+  }, [conversationId]);
 
-  // ── Delete message ──
-  const deleteMutation = useMutation({
-    mutationFn: async ({ messageId, forMe }: { messageId: string; forMe: boolean }) => {
-      if (forMe) {
-        await api.delete(`/messages/${messageId}/for-me`);
-      } else {
-        await api.delete(`/messages/${messageId}`);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    },
-  });
+  const deleteMessage = useCallback(({ messageId }: { messageId: string; forMe: boolean }) => {
+    setAllMessages(prev => ({
+      ...prev,
+      [conversationId]: (prev[conversationId] || []).filter(m => m.id !== messageId),
+    }));
+  }, [conversationId]);
 
-  // ── Reactions ──
-  const addReactionMutation = useMutation({
-    mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
-      await api.post(`/messages/${messageId}/reactions`, { emoji });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    },
-  });
+  const addReaction = useCallback(({ messageId, emoji }: { messageId: string; emoji: string }) => {
+    setAllMessages(prev => ({
+      ...prev,
+      [conversationId]: (prev[conversationId] || []).map(m => {
+        if (m.id !== messageId) return m;
+        const reactions = [...(m.reactions || [])];
+        const existing = reactions.find(r => r.emoji === emoji);
+        if (existing) {
+          existing.users = [...existing.users, String(currentUserId)];
+        } else {
+          reactions.push({ emoji, users: [String(currentUserId)] });
+        }
+        return { ...m, reactions };
+      }),
+    }));
+  }, [conversationId, currentUserId]);
 
-  const removeReactionMutation = useMutation({
-    mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
-      await api.delete(`/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    },
-  });
+  const removeReaction = useCallback(({ messageId, emoji }: { messageId: string; emoji: string }) => {
+    setAllMessages(prev => ({
+      ...prev,
+      [conversationId]: (prev[conversationId] || []).map(m => {
+        if (m.id !== messageId) return m;
+        const reactions = (m.reactions || []).map(r => {
+          if (r.emoji !== emoji) return r;
+          return { ...r, users: r.users.filter(u => u !== String(currentUserId)) };
+        }).filter(r => r.users.length > 0);
+        return { ...m, reactions };
+      }),
+    }));
+  }, [conversationId, currentUserId]);
 
-  // ── Typing indicator ──
-  const sendTyping = async () => {
-    try {
-      await api.post(`/messages/conversations/${conversationId}/typing`);
-    } catch {
-      // ignore
-    }
-  };
+  const sendTyping = useCallback(async () => {}, []);
 
   return {
-    messages: query.data ?? [],
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
-    // Mutations
-    sendMessage: sendMutation.mutateAsync,
-    isSending: sendMutation.isPending,
-    pinMessage: pinMutation.mutate,
-    editMessage: editMutation.mutateAsync,
-    deleteMessage: deleteMutation.mutate,
-    addReaction: addReactionMutation.mutate,
-    removeReaction: removeReactionMutation.mutate,
+    messages,
+    isLoading: false,
+    error: null,
+    refetch: () => {},
+    sendMessage,
+    isSending: false,
+    pinMessage,
+    editMessage,
+    deleteMessage,
+    addReaction,
+    removeReaction,
     sendTyping,
   };
 }

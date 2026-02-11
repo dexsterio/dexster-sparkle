@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api from '@/lib/api';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { MOCK_USER } from '@/data/mockData';
 
 export interface DexsterUser {
   id: number;
@@ -22,7 +22,6 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   wsToken: string | null;
-  /** Call after external login completes to refresh session */
   refreshSession: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -30,7 +29,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue>({
   currentUser: null,
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: false,
   wsToken: null,
   refreshSession: async () => {},
   logout: async () => {},
@@ -39,48 +38,20 @@ const AuthContext = createContext<AuthContextValue>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<DexsterUser | null>(null);
-  const [wsToken, setWsToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<DexsterUser | null>(MOCK_USER);
 
-  const fetchSession = useCallback(async () => {
-    try {
-      const data = await api.get<{ user: DexsterUser | null; wsToken?: string }>('/auth/session');
-      setCurrentUser(data.user);
-      setWsToken(data.wsToken ?? null);
-    } catch {
-      setCurrentUser(null);
-      setWsToken(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchSession();
-  }, [fetchSession]);
-
-  const refreshSession = useCallback(async () => {
-    setIsLoading(true);
-    await fetchSession();
-  }, [fetchSession]);
+  const refreshSession = useCallback(async () => {}, []);
 
   const logout = useCallback(async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch {
-      // ignore
-    }
     setCurrentUser(null);
-    setWsToken(null);
   }, []);
 
   return (
     <AuthContext.Provider value={{
       currentUser,
       isAuthenticated: !!currentUser,
-      isLoading,
-      wsToken,
+      isLoading: false,
+      wsToken: 'mock-token',
       refreshSession,
       logout,
     }}>

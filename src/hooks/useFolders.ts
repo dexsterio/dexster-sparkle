@@ -1,58 +1,42 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { useState, useCallback } from 'react';
 import type { CustomFolder } from '@/types/chat';
-
-interface ApiFolder {
-  id: number;
-  name: string;
-  emoji: string;
-  chatIds: number[];
-}
-
-function mapToCustomFolder(f: ApiFolder): CustomFolder {
-  return {
-    id: String(f.id),
-    name: f.name,
-    emoji: f.emoji,
-    includedChatIds: f.chatIds.map(String),
-  };
-}
+import { MOCK_FOLDERS } from '@/data/mockData';
 
 export function useFolders() {
-  const queryClient = useQueryClient();
-  const queryKey = ['folders'];
+  const [folders, setFolders] = useState<CustomFolder[]>(MOCK_FOLDERS);
 
-  const query = useQuery({
-    queryKey,
-    queryFn: async () => {
-      const data = await api.get<ApiFolder[]>('/messages/folders');
-      return data.map(mapToCustomFolder);
-    },
-    staleTime: 60_000,
-  });
+  const createFolder = useCallback(async (data: { name: string; emoji: string; chatIds: number[] }) => {
+    const newFolder: CustomFolder = {
+      id: `f_${Date.now()}`,
+      name: data.name,
+      emoji: data.emoji,
+      includedChatIds: data.chatIds.map(String),
+    };
+    setFolders(prev => [...prev, newFolder]);
+    return newFolder;
+  }, []);
 
-  const createMutation = useMutation({
-    mutationFn: (data: { name: string; emoji: string; chatIds: number[] }) =>
-      api.post('/messages/folders', data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
-  });
+  const updateFolder = useCallback(({ id, ...data }: { id: string; name?: string; emoji?: string; chatIds?: number[] }) => {
+    setFolders(prev => prev.map(f => {
+      if (f.id !== id) return f;
+      return {
+        ...f,
+        ...(data.name && { name: data.name }),
+        ...(data.emoji && { emoji: data.emoji }),
+        ...(data.chatIds && { includedChatIds: data.chatIds.map(String) }),
+      };
+    }));
+  }, []);
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name?: string; emoji?: string; chatIds?: number[] }) =>
-      api.put(`/messages/folders/${id}`, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/messages/folders/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
-  });
+  const deleteFolder = useCallback((id: string) => {
+    setFolders(prev => prev.filter(f => f.id !== id));
+  }, []);
 
   return {
-    folders: query.data ?? [],
-    isLoading: query.isLoading,
-    createFolder: createMutation.mutateAsync,
-    updateFolder: updateMutation.mutate,
-    deleteFolder: deleteMutation.mutate,
+    folders,
+    isLoading: false,
+    createFolder,
+    updateFolder,
+    deleteFolder,
   };
 }
