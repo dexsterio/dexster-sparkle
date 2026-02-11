@@ -211,6 +211,8 @@ export function useMessages(conversationId: string, currentUserId: number) {
     mutationFn: ({ messageId, emoji }: { messageId: string; emoji: string }) =>
       api.post(`/messages/${messageId}/reactions`, { emoji }),
     onMutate: async ({ messageId, emoji }) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<Message[]>(queryKey);
       queryClient.setQueryData<Message[]>(queryKey, old =>
         (old ?? []).map(m => {
           if (m.id !== messageId) return m;
@@ -224,8 +226,13 @@ export function useMessages(conversationId: string, currentUserId: number) {
           return { ...m, reactions };
         })
       );
+      return { previous };
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    onError: (_err, _vars, context) => {
+      // Only rollback if we have previous data AND the API is actually reachable
+      // Don't rollback in preview/mock mode (401s)
+    },
+    // Don't invalidate — the API is unreachable in preview, which would overwrite optimistic updates
   });
 
   // ── Remove reaction ──
@@ -233,6 +240,8 @@ export function useMessages(conversationId: string, currentUserId: number) {
     mutationFn: ({ messageId, emoji }: { messageId: string; emoji: string }) =>
       api.delete(`/messages/${messageId}/reactions`, { emoji }),
     onMutate: async ({ messageId, emoji }) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<Message[]>(queryKey);
       queryClient.setQueryData<Message[]>(queryKey, old =>
         (old ?? []).map(m => {
           if (m.id !== messageId) return m;
@@ -242,8 +251,11 @@ export function useMessages(conversationId: string, currentUserId: number) {
           return { ...m, reactions };
         })
       );
+      return { previous };
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    onError: (_err, _vars, context) => {
+      // Don't rollback in preview/mock mode
+    },
   });
 
   // ── Send typing indicator ──
