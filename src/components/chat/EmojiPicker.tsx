@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { EMOJI_DATA } from '@/data/mockData';
+import { EMOJI_DATA } from '@/data/emojiData';
 import { Search, X } from 'lucide-react';
 
 interface EmojiPickerProps {
