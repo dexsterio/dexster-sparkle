@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { Chat, CustomFolder } from '@/types/chat';
 import ContextMenu, { ContextMenuItem } from './ContextMenu';
 import { Search, Edit3, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import dexsterLogo from '@/assets/dexster-logo.svg';
 import MobileBottomNav, { MobileTab } from './MobileBottomNav';
 import NotificationBell from './NotificationBell';
 import ContactsTab from './ContactsTab';
@@ -159,7 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-primary-foreground font-bold text-sm">D</div>
+          <img src={dexsterLogo} alt="Dexster" className="w-8 h-8" />
           <span className="text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Dexster</span>
         </div>
         <div className="flex items-center gap-0.5">
