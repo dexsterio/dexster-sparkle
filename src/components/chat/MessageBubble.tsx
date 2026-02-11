@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { Reply } from 'lucide-react';
 import { Message, Chat } from '@/types/chat';
 import ContextMenu, { ContextMenuItem } from './ContextMenu';
 import PollMessage from './PollMessage';
@@ -155,12 +156,22 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [showReactedBy, setShowReactedBy] = useState<string | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
+  // Swipe-to-reply state
+  const [swipeX, setSwipeX] = useState(0);
+  const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const swipeDirectionLocked = useRef<'horizontal' | 'vertical' | null>(null);
+  const swipeThresholdReached = useRef(false);
+
   // Long press handler for mobile
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (selectMode || !isMobile) return;
     const touch = e.touches[0];
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+    swipeDirectionLocked.current = null;
+    swipeThresholdReached.current = false;
     longPressTimer.current = setTimeout(() => {
       setContextMenu({ x: touch.clientX, y: touch.clientY });
+      swipeStartRef.current = null; // Cancel swipe if long-press fires
     }, 400);
   }, [selectMode, isMobile]);
 
@@ -169,12 +180,46 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
-  }, []);
+    if (swipeX > 60) {
+      onReply(message);
+      if (navigator.vibrate) navigator.vibrate(15);
+    }
+    setSwipeX(0);
+    swipeStartRef.current = null;
+    swipeDirectionLocked.current = null;
+  }, [swipeX, message, onReply]);
 
-  const handleTouchMove = useCallback(() => {
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
+    }
+    if (!swipeStartRef.current) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - swipeStartRef.current.x;
+    const deltaY = touch.clientY - swipeStartRef.current.y;
+
+    // Lock direction after 10px of movement
+    if (!swipeDirectionLocked.current) {
+      if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+        swipeDirectionLocked.current = Math.abs(deltaX) > Math.abs(deltaY) ? 'horizontal' : 'vertical';
+      }
+      return;
+    }
+
+    if (swipeDirectionLocked.current === 'vertical') return;
+
+    // Only allow right-swipe
+    if (deltaX > 0) {
+      const clamped = Math.min(deltaX, 100);
+      setSwipeX(clamped);
+      // Haptic at threshold
+      if (clamped > 60 && !swipeThresholdReached.current) {
+        swipeThresholdReached.current = true;
+        if (navigator.vibrate) navigator.vibrate(10);
+      }
+      if (clamped <= 60) swipeThresholdReached.current = false;
     }
   }, []);
 
@@ -261,6 +306,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const displayText = message.translated || message.text;
   const isMediaMessage = message.type === 'gif';
+
+  const swipeStyle = isMobile && swipeX > 0 ? { transform: `translateX(${swipeX}px)`, transition: 'none' as const } : isMobile ? { transition: 'transform 0.25s ease' } : {};
+
+  const SwipeReplyIcon = () => (
+    isMobile && swipeX > 10 ? (
+      <div className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center justify-center z-0" style={{ opacity: Math.min(swipeX / 60, 1), transform: `scale(${Math.min(swipeX / 60, 1)})` }}>
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center ${swipeX > 60 ? 'bg-primary' : 'bg-muted'} transition-colors`}>
+          <Reply size={16} className={swipeX > 60 ? 'text-primary-foreground' : 'text-muted-foreground'} />
+        </div>
+      </div>
+    ) : null
+  );
 
   // Media messages (GIF, images, videos) render without bubble
   if (isMediaMessage) {
@@ -355,18 +412,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   }
 
   return (
-    <div
-      id={`msg-${message.id}`}
-      className={`flex ${isOwn && !isChannel ? 'justify-end' : 'justify-start'} mb-1.5 relative group animate-[msgIn_0.2s_ease-out] ${isCurrentSearchMatch ? 'bg-dex-warning/10 rounded-lg' : isSearchMatch ? 'bg-primary/[0.05] rounded-lg' : ''}`}
-      onMouseEnter={!isMobile ? () => setHovered(true) : undefined}
-      onMouseLeave={!isMobile ? () => { setHovered(false); setShowReactionPicker(false); setShowReactedBy(null); } : undefined}
-      onContextMenu={!isMobile ? handleContextMenu : undefined}
-      onDoubleClick={handleDoubleClick}
-      onClick={selectMode ? () => onToggleSelect(message.id) : undefined}
-      onTouchStart={isMobile ? handleTouchStart : undefined}
-      onTouchEnd={isMobile ? handleTouchEnd : undefined}
-      onTouchMove={isMobile ? handleTouchMove : undefined}
-    >
+    <div className="relative">
+      <SwipeReplyIcon />
+      <div
+        id={`msg-${message.id}`}
+        className={`flex ${isOwn && !isChannel ? 'justify-end' : 'justify-start'} mb-1.5 relative group animate-[msgIn_0.2s_ease-out] ${isCurrentSearchMatch ? 'bg-dex-warning/10 rounded-lg' : isSearchMatch ? 'bg-primary/[0.05] rounded-lg' : ''}`}
+        style={swipeStyle}
+        onMouseEnter={!isMobile ? () => setHovered(true) : undefined}
+        onMouseLeave={!isMobile ? () => { setHovered(false); setShowReactionPicker(false); setShowReactedBy(null); } : undefined}
+        onContextMenu={!isMobile ? handleContextMenu : undefined}
+        onDoubleClick={handleDoubleClick}
+        onClick={selectMode ? () => onToggleSelect(message.id) : undefined}
+        onTouchStart={isMobile ? handleTouchStart : undefined}
+        onTouchEnd={isMobile ? handleTouchEnd : undefined}
+        onTouchMove={isMobile ? handleTouchMove : undefined}
+      >
       {selectMode && (
         <div className="flex items-center mr-2 flex-shrink-0">
           <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'}`}>
@@ -542,6 +602,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           quickReactions={QUICK_REACTIONS} onReaction={(emoji) => { handleReaction(emoji); setContextMenu(null); }}
           onClose={() => setContextMenu(null)} />
       )}
+      </div>
     </div>
   );
 };

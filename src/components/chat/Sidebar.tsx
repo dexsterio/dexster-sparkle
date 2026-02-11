@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Chat, CustomFolder } from '@/types/chat';
 import ContextMenu, { ContextMenuItem } from './ContextMenu';
-import { Search, Edit3, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, Edit3, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 
 interface SidebarProps {
   chats: Chat[];
@@ -26,6 +26,7 @@ interface SidebarProps {
   chatDrafts: Record<string, string>;
   onClearHistory: (id: string) => void;
   isMobile?: boolean;
+  onRefresh?: () => void;
 }
 
 const DEFAULT_FOLDERS = [
@@ -39,7 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   chats, archivedChats, activeChat, onSelectChat, onPinChat, onMuteChat, onMuteWithDuration,
   onDeleteChat, onMarkRead, onMarkUnread, onArchiveChat, onUnarchiveChat, onBlockUser,
   onCreateChannel, onCreateGroup, onCreateFolder, onNewChat, customFolders, onMoveToFolder, chatDrafts,
-  onClearHistory, isMobile,
+  onClearHistory, isMobile, onRefresh,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -48,6 +49,43 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const newMenuRef = useRef<HTMLDivElement>(null);
+  const chatListRef = useRef<HTMLDivElement>(null);
+
+  // Pull-to-refresh state
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const pullStartY = useRef<number | null>(null);
+
+  const handlePullStart = useCallback((e: React.TouchEvent) => {
+    if (!isMobile || !chatListRef.current) return;
+    if (chatListRef.current.scrollTop <= 0) {
+      pullStartY.current = e.touches[0].clientY;
+    }
+  }, [isMobile]);
+
+  const handlePullMove = useCallback((e: React.TouchEvent) => {
+    if (pullStartY.current === null || isRefreshing) return;
+    const deltaY = e.touches[0].clientY - pullStartY.current;
+    if (deltaY > 0) {
+      // Rubber-band resistance
+      setPullDistance(Math.min(deltaY * 0.5, 100));
+    }
+  }, [isRefreshing]);
+
+  const handlePullEnd = useCallback(() => {
+    if (pullDistance > 70 && onRefresh) {
+      setIsRefreshing(true);
+      if (navigator.vibrate) navigator.vibrate(15);
+      onRefresh();
+      setTimeout(() => {
+        setIsRefreshing(false);
+        setPullDistance(0);
+      }, 1000);
+    } else {
+      setPullDistance(0);
+    }
+    pullStartY.current = null;
+  }, [pullDistance, onRefresh]);
 
   // Click-outside for new chat dropdown
   useEffect(() => {
@@ -164,7 +202,26 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Chat List */}
-      <div className="flex-1 overflow-y-auto">
+      <div
+        ref={chatListRef}
+        className="flex-1 overflow-y-auto relative"
+        onTouchStart={isMobile ? handlePullStart : undefined}
+        onTouchMove={isMobile ? handlePullMove : undefined}
+        onTouchEnd={isMobile ? handlePullEnd : undefined}
+      >
+        {/* Pull-to-refresh indicator */}
+        {isMobile && (pullDistance > 0 || isRefreshing) && (
+          <div
+            className="flex items-center justify-center transition-all duration-200"
+            style={{ height: isRefreshing ? 48 : pullDistance, opacity: Math.min(pullDistance / 70, 1) }}
+          >
+            <RefreshCw
+              size={20}
+              className={`text-primary ${isRefreshing ? 'animate-spin' : ''}`}
+              style={!isRefreshing ? { transform: `rotate(${pullDistance * 3}deg)` } : undefined}
+            />
+          </div>
+        )}
         {/* Archived section */}
         {archivedChats.length > 0 && (
           <button onClick={() => setShowArchived(!showArchived)}
