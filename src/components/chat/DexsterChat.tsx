@@ -98,6 +98,7 @@ const DexsterChat: React.FC = () => {
   const [pendingEffect, setPendingEffect] = useState<MessageEffect | null>(null);
   const [scheduledText, setScheduledText] = useState('');
   const [bulkForwardTarget, setBulkForwardTarget] = useState(false);
+  const [activeEffect, setActiveEffect] = useState<{ effect: MessageEffect; id: string } | null>(null);
 
   // Local comments (no API endpoint for channel comments yet)
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
@@ -230,6 +231,13 @@ const DexsterChat: React.FC = () => {
       clientMsgId: crypto.randomUUID(),
     });
     setReplyTo(null);
+
+    // Trigger effect animation
+    if (options?.effect) {
+      const effectId = `effect_${Date.now()}`;
+      setActiveEffect({ effect: options.effect, id: effectId });
+      setTimeout(() => setActiveEffect(null), 3000);
+    }
     setPendingEffect(null);
 
     // If this is a new DM (pending request), lock input after first message
@@ -829,6 +837,8 @@ const DexsterChat: React.FC = () => {
           }}
           isUploading={isUploading}
           uploadProgress={uploadProgress}
+          onSendTyping={() => sendTyping()}
+          activeEffect={activeEffect}
         />
       )}
 

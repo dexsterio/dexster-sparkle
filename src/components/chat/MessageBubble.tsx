@@ -527,12 +527,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         {/* Non-channel footer */}
         {!isChannel && message.type !== 'poll' && (
           <div className={`flex items-center justify-end gap-1 mt-0.5 text-[11px] flex-shrink-0 whitespace-nowrap ${metaColor}`}>
+            {message.bookmarked && <span title="Bookmarked">🔖</span>}
             {message.edited && <span>edited</span>}
             <span>{message.time}</span>
             {isOwn && !message.scheduled && (
               <span className="ml-0.5">
                 {message.read ? (
-                  <svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L4.5 9L11 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7"/><path d="M5 5.5L8.5 9L15 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7"/></svg>
+                  <svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L4.5 9L11 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9"/><path d="M5 5.5L8.5 9L15 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9"/></svg>
                 ) : (
                   <svg width="12" height="11" viewBox="0 0 12 11" fill="none"><path d="M1 5.5L4.5 9L11 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.45"/></svg>
                 )}
