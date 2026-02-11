@@ -9,6 +9,7 @@ import NotificationBell from './NotificationBell';
 import ContactsTab from './ContactsTab';
 import SavedMessagesTab from './SavedMessagesTab';
 import SettingsTab from './SettingsTab';
+import MyProfilePanel from './MyProfilePanel';
 
 interface SidebarProps {
   chats: Chat[];
@@ -57,6 +58,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [showArchived, setShowArchived] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>('chats');
   const [showHamburger, setShowHamburger] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
   const newMenuRef = useRef<HTMLDivElement>(null);
   const chatListRef = useRef<HTMLDivElement>(null);
@@ -192,7 +194,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             {/* Menu items */}
             <div className="flex-1 overflow-y-auto py-2">
               {[
-                { icon: <User size={20} />, label: 'My Profile', action: () => { setShowHamburger(false); } },
+                { icon: <User size={20} />, label: 'My Profile', action: () => { setShowHamburger(false); setShowProfile(true); } },
                 { icon: <Users size={20} />, label: 'New Group', action: () => { setShowHamburger(false); onCreateGroup(); } },
                 { icon: <Megaphone size={20} />, label: 'New Channel', action: () => { setShowHamburger(false); onCreateChannel(); } },
                 { icon: <User size={20} />, label: 'Contacts', action: () => { setShowHamburger(false); if (isMobile) setMobileTab('contacts'); } },
@@ -395,6 +397,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           unreadCount={chats.reduce((s, c) => s + c.unread, 0)}
         />
       )}
+
+      {/* My Profile Panel */}
+      {showProfile && <MyProfilePanel onClose={() => setShowProfile(false)} />}
     </div>
   );
 };
