@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { Play, Pause, FileText, Download } from 'lucide-react';
 import { Reply } from 'lucide-react';
 import { Message, Chat } from '@/types/chat';
 import ContextMenu, { ContextMenuItem } from './ContextMenu';
@@ -305,7 +306,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   ];
 
   const displayText = message.translated || message.text;
-  const isMediaMessage = message.type === 'gif';
+  const isImageUrl = (t: string) => /\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(t) || t.startsWith('blob:');
+  const isVideoUrl = (t: string) => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(t);
+  const isAudioUrl = (t: string) => /\.(webm|mp3|ogg|wav|m4a)(\?|$)/i.test(t) || (t.startsWith('blob:') && (message.type as string) === 'voice');
+  const isFileLink = (t: string) => /^\[(.+?)\]\((.+?)\)$/.test(t);
+  const isMediaMessage = message.type === 'gif' || (message.type as string) === 'image' || (message.type as string) === 'video' || (message.type as string) === 'voice' || isImageUrl(message.text) || isVideoUrl(message.text);
 
   const swipeStyle = isMobile && swipeX > 0 ? { transform: `translateX(${swipeX}px)`, transition: 'none' as const } : isMobile ? { transition: 'transform 0.25s ease' } : {};
 
@@ -352,6 +357,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
           {message.type === 'gif' && message.gifUrl && (
             <img src={message.gifUrl} alt="GIF" className="w-full h-auto rounded-2xl" loading="lazy" />
+          )}
+
+          {/* Image */}
+          {((message.type as string) === 'image' || (message.type === 'message' && isImageUrl(message.text))) && (
+            <img src={message.text} alt="Photo" className="w-full h-auto rounded-2xl max-h-[400px] object-cover" loading="lazy" />
+          )}
+
+          {/* Video */}
+          {((message.type as string) === 'video' || (message.type === 'message' && isVideoUrl(message.text))) && (
+            <video src={message.text} controls className="w-full h-auto rounded-2xl max-h-[400px]" preload="metadata" />
+          )}
+
+          {/* Voice message */}
+          {(message.type as string) === 'voice' && (
+            <VoicePlayer src={message.text} isOwn={isOwn} />
           )}
 
           {/* Time overlay */}
@@ -486,8 +506,37 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         {/* GIF content removed — rendered without bubble above */}
 
+        {/* Image inline */}
+        {(message.type as string) === 'image' && (
+          <img src={message.text} alt="Photo" className="w-full h-auto rounded-2xl max-h-[400px] object-cover mt-1" loading="lazy" />
+        )}
+
+        {/* Video inline */}
+        {(message.type as string) === 'video' && (
+          <video src={message.text} controls className="w-full h-auto rounded-2xl max-h-[400px] mt-1" preload="metadata" />
+        )}
+
+        {/* Voice inline */}
+        {(message.type as string) === 'voice' && (
+          <VoicePlayer src={message.text} isOwn={ownBubble} />
+        )}
+
+        {/* File attachment */}
+        {message.type === 'message' && isFileLink(message.text) && (() => {
+          const match = message.text.match(/^\[(.+?)\]\((.+?)\)$/);
+          if (!match) return null;
+          const [, fileName, fileUrl] = match;
+          return (
+            <a href={fileUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 py-1.5 px-2 rounded-xl mt-1 ${ownBubble ? 'bg-white/10 hover:bg-white/20' : 'bg-muted hover:bg-muted/80'} transition-colors`}>
+              <FileText size={20} className={ownBubble ? 'text-white/70' : 'text-primary'} />
+              <span className={`text-sm truncate flex-1 ${ownBubble ? 'text-white/90' : 'text-foreground'}`}>{fileName}</span>
+              <Download size={14} className={ownBubble ? 'text-white/50' : 'text-muted-foreground'} />
+            </a>
+          );
+        })()}
+
         {/* Text content */}
-        {message.type === 'message' && (
+        {message.type === 'message' && !isImageUrl(message.text) && !isVideoUrl(message.text) && !isFileLink(message.text) && (
           <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
             {formatText(displayText, searchHighlight || undefined, isOwn && !isChannel)}
           </div>
@@ -603,6 +652,53 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           quickReactions={QUICK_REACTIONS} onReaction={(emoji) => { handleReaction(emoji); setContextMenu(null); }}
           onClose={() => setContextMenu(null)} />
       )}
+      </div>
+    </div>
+  );
+};
+
+// Voice player component
+const VoicePlayer: React.FC<{ src: string; isOwn?: boolean }> = ({ src, isOwn }) => {
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const toggle = useCallback(() => {
+    if (!audioRef.current) return;
+    if (playing) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setPlaying(!playing);
+  }, [playing]);
+
+  const formatTime = (s: number) => {
+    if (!s || !isFinite(s)) return '0:00';
+    return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="flex items-center gap-2 min-w-[180px] py-1">
+      <audio
+        ref={audioRef}
+        src={src}
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
+        onTimeUpdate={() => {
+          const a = audioRef.current;
+          if (a) setProgress(a.duration ? a.currentTime / a.duration : 0);
+        }}
+        onEnded={() => { setPlaying(false); setProgress(0); }}
+      />
+      <button onClick={toggle} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${isOwn ? 'bg-white/20 hover:bg-white/30' : 'bg-primary/20 hover:bg-primary/30'} transition-colors`}>
+        {playing ? <Pause size={16} className={isOwn ? 'text-white' : 'text-primary'} /> : <Play size={16} className={`${isOwn ? 'text-white' : 'text-primary'} ml-0.5`} />}
+      </button>
+      <div className="flex-1 flex flex-col gap-1">
+        <div className={`h-1 rounded-full overflow-hidden ${isOwn ? 'bg-white/20' : 'bg-muted'}`}>
+          <div className={`h-full rounded-full transition-all ${isOwn ? 'bg-white/80' : 'bg-primary'}`} style={{ width: `${progress * 100}%` }} />
+        </div>
+        <span className={`text-[10px] ${isOwn ? 'text-white/50' : 'text-muted-foreground'}`}>{formatTime(playing ? (audioRef.current?.currentTime || 0) : duration)}</span>
       </div>
     </div>
   );

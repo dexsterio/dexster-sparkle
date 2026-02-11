@@ -839,6 +839,28 @@ const DexsterChat: React.FC = () => {
           uploadProgress={uploadProgress}
           onSendTyping={() => sendTyping()}
           activeEffect={activeEffect}
+          onVoiceSend={async (blob, duration) => {
+            try {
+              const result = await uploadFile(new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' }));
+              await apiSendMessage({ encryptedContent: result.url, clientMsgId: crypto.randomUUID(), type: 'voice' as any });
+            } catch {
+              // Fallback: use blob URL for local preview
+              const blobUrl = URL.createObjectURL(blob);
+              addOptimisticMessage({
+                id: `voice_${Date.now()}`,
+                chatId: activeChat,
+                senderId: userIdStr,
+                senderName: userName,
+                text: blobUrl,
+                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                date: new Date().toISOString().split('T')[0],
+                isOwn: true,
+                read: false,
+                type: 'voice' as any,
+                reactions: [],
+              });
+            }
+          }}
         />
       )}
 

@@ -5,6 +5,7 @@ import EmojiPicker from './EmojiPicker';
 import GifPicker from './GifPicker';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Search, MoreVertical, ArrowDown, ArrowUp, ArrowLeft, X, Paperclip, Smile, Mic, Send, Check, Type, Clock, Sparkles, Bell, BellOff, Settings, BarChart3, Trash2, LogOut, Ban, UserPlus, Image } from 'lucide-react';
+import VoiceRecorder from './VoiceRecorder';
 
 interface ChatAreaProps {
   chat: Chat;
@@ -79,6 +80,7 @@ interface ChatAreaProps {
   uploadProgress?: number;
   onSendTyping?: () => void;
   activeEffect?: { effect: MessageEffect; id: string } | null;
+  onVoiceSend?: (blob: Blob, duration: number) => void;
 }
 
 const DICE_EMOJIS = ['🎲', '🎯', '🏀', '⚽', '🎰', '🎳'];
@@ -96,7 +98,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   slowMode, slowModeRemaining, isMobile, onBack,
   requestStatus, onAcceptRequest, onRejectRequest, requestRecipientName,
   onImageSelect, onVideoSelect, onFileSelect, isUploading, uploadProgress,
-  onSendTyping, activeEffect,
+  onSendTyping, activeEffect, onVoiceSend,
 }) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -110,6 +112,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [newMsgCount, setNewMsgCount] = useState(0);
   const [slowModeCountdown, setSlowModeCountdown] = useState(0);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -631,6 +634,16 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       )}
       {!selectMode && !chat.blocked && requestStatus !== 'pending_sent' && requestStatus !== 'pending_received' && (
         <div className="flex items-end gap-1.5 md:gap-2 px-2 md:px-4 py-2 md:py-3 border-t border-border relative" style={isMobile ? { paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' } : undefined}>
+          {isRecordingVoice && onVoiceSend ? (
+            <VoiceRecorder
+              onSend={(blob, dur) => {
+                onVoiceSend(blob, dur);
+                setIsRecordingVoice(false);
+              }}
+              onCancel={() => setIsRecordingVoice(false)}
+            />
+          ) : (
+            <>
           {!isMobile && (
             <button onClick={() => setShowFormatBar(!showFormatBar)} className="p-2 rounded-lg hover:bg-dex-hover text-muted-foreground flex-shrink-0">
               <Type size={18} />
@@ -765,7 +778,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             </div>
           )}
 
-          <button onClick={() => handleSend()}
+          <button onClick={() => {
+              if (inputText.trim()) {
+                handleSend();
+              } else if (!editMsg && onVoiceSend) {
+                setIsRecordingVoice(true);
+              }
+            }}
             disabled={slowModeCountdown > 0}
             className={`p-2.5 rounded-full flex-shrink-0 transition-all duration-200 ease-out ${inputText.trim() && slowModeCountdown <= 0 ? 'bg-gradient-to-br from-primary to-[hsl(252,60%,48%)] text-primary-foreground scale-100' : 'text-muted-foreground scale-95'} ${slowModeCountdown > 0 ? 'opacity-40' : ''}`}>
             {editMsg ? <Check size={18} /> : inputText.trim() ? <Send size={18} /> : <Mic size={18} />}
@@ -776,6 +795,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               {pendingEffect === 'confetti' ? '🎊' : pendingEffect === 'fireworks' ? '🎆' : '❤️'} {pendingEffect}
               <button onClick={() => onSetEffect(null)} className="ml-0.5 hover:text-destructive">✕</button>
             </div>
+          )}
+          </>
           )}
         </div>
       )}
