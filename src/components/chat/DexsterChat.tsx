@@ -688,7 +688,6 @@ const DexsterChat: React.FC = () => {
     // TODO: upload avatarFile if provided
     setShowGroupModal(false);
     setActiveChat(newId);
-    queryClient.invalidateQueries({ queryKey: ['conversations'] });
     showToast('Group created!');
   }, [apiCreateGroup, queryClient, showToast, updateSettings]);
 
@@ -720,7 +719,6 @@ const DexsterChat: React.FC = () => {
     }
     setShowChannelModal(false);
     setActiveChat(newId);
-    queryClient.invalidateQueries({ queryKey: ['conversations'] });
     showToast('Channel created!');
   }, [apiCreateChannel, queryClient, showToast]);
 
