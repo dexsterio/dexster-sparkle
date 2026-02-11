@@ -685,6 +685,10 @@ const DexsterChat: React.FC = () => {
           chatDrafts={chatDrafts}
           onClearHistory={(id) => { setActiveChat(id); setShowClearHistory(true); }}
           isMobile={isMobile}
+          onRefresh={() => {
+            queryClient.invalidateQueries({ queryKey: ['conversations'] });
+            showToast('Chats refreshed');
+          }}
         />
       )}
 
