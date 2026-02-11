@@ -16,6 +16,7 @@ export default {
       fontFamily: {
         outfit: ['Outfit', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
+        orbitron: ['Orbitron', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -68,6 +69,7 @@ export default {
           surface: "hsl(var(--dex-surface))",
           hover: "hsl(var(--dex-hover))",
         },
+        "brand-turquoise": "hsl(var(--color-brand-turquoise))",
       },
       borderRadius: {
         lg: "var(--radius)",
