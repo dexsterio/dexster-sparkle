@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Play, Pause, FileText, Download } from 'lucide-react';
+import { Play, Pause, FileText, Download, Mic } from 'lucide-react';
 import { Reply } from 'lucide-react';
 import { Message, Chat } from '@/types/chat';
 import ContextMenu, { ContextMenuItem } from './ContextMenu';
@@ -657,48 +657,104 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   );
 };
 
-// Voice player component
+// Voice player component — enhanced waveform style
+const WAVEFORM_BARS = 32;
+const generateWaveform = (seed: string): number[] => {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  return Array.from({ length: WAVEFORM_BARS }, (_, i) => {
+    const v = Math.abs(Math.sin(hash * (i + 1) * 0.3)) * 0.7 + 0.15 + Math.abs(Math.cos(hash * i * 0.7)) * 0.15;
+    return Math.min(v, 1);
+  });
+};
+
 const VoicePlayer: React.FC<{ src: string; isOwn?: boolean }> = ({ src, isOwn }) => {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const waveformRef = useRef<HTMLDivElement>(null);
+  const waveform = useRef(generateWaveform(src)).current;
 
   const toggle = useCallback(() => {
     if (!audioRef.current) return;
-    if (playing) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
+    if (playing) audioRef.current.pause();
+    else audioRef.current.play();
     setPlaying(!playing);
   }, [playing]);
+
+  const seek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!audioRef.current || !waveformRef.current) return;
+    const rect = waveformRef.current.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audioRef.current.currentTime = ratio * audioRef.current.duration;
+    setProgress(ratio);
+  }, []);
 
   const formatTime = (s: number) => {
     if (!s || !isFinite(s)) return '0:00';
     return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   };
 
+  const playedBars = Math.floor(progress * WAVEFORM_BARS);
+
   return (
-    <div className="flex items-center gap-2 min-w-[180px] py-1">
+    <div className={`flex items-center gap-2.5 min-w-[200px] ${isOwn ? 'px-3 py-2.5 rounded-[18px_18px_4px_18px] bg-gradient-to-br from-primary to-[hsl(252,60%,48%)]' : 'px-3 py-2.5 rounded-[18px_18px_18px_4px] bg-dex-bubble-other'}`}>
       <audio
         ref={audioRef}
         src={src}
         onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
         onTimeUpdate={() => {
           const a = audioRef.current;
-          if (a) setProgress(a.duration ? a.currentTime / a.duration : 0);
+          if (a && a.duration) setProgress(a.currentTime / a.duration);
         }}
         onEnded={() => { setPlaying(false); setProgress(0); }}
       />
-      <button onClick={toggle} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${isOwn ? 'bg-white/20 hover:bg-white/30' : 'bg-primary/20 hover:bg-primary/30'} transition-colors`}>
-        {playing ? <Pause size={16} className={isOwn ? 'text-white' : 'text-primary'} /> : <Play size={16} className={`${isOwn ? 'text-white' : 'text-primary'} ml-0.5`} />}
+
+      {/* Play/Pause button */}
+      <button
+        onClick={toggle}
+        className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+          isOwn
+            ? 'bg-white/20 hover:bg-white/30 active:scale-95'
+            : 'bg-primary/15 hover:bg-primary/25 active:scale-95'
+        }`}
+      >
+        {playing ? (
+          <Pause size={18} className={isOwn ? 'text-white' : 'text-primary'} />
+        ) : (
+          <Play size={18} className={`${isOwn ? 'text-white' : 'text-primary'} ml-0.5`} />
+        )}
       </button>
-      <div className="flex-1 flex flex-col gap-1">
-        <div className={`h-1 rounded-full overflow-hidden ${isOwn ? 'bg-white/20' : 'bg-muted'}`}>
-          <div className={`h-full rounded-full transition-all ${isOwn ? 'bg-white/80' : 'bg-primary'}`} style={{ width: `${progress * 100}%` }} />
+
+      {/* Waveform + time */}
+      <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+        <div
+          ref={waveformRef}
+          className="flex items-end gap-[2px] h-[28px] cursor-pointer"
+          onClick={seek}
+        >
+          {waveform.map((v, i) => (
+            <div
+              key={i}
+              className={`flex-1 rounded-full transition-colors duration-150 ${
+                i < playedBars
+                  ? isOwn ? 'bg-white/90' : 'bg-primary'
+                  : isOwn ? 'bg-white/25' : 'bg-muted-foreground/25'
+              }`}
+              style={{ height: `${Math.max(v * 28, 3)}px`, minWidth: '2px' }}
+            />
+          ))}
         </div>
-        <span className={`text-[10px] ${isOwn ? 'text-white/50' : 'text-muted-foreground'}`}>{formatTime(playing ? (audioRef.current?.currentTime || 0) : duration)}</span>
+        <div className="flex items-center justify-between">
+          <span className={`text-[10px] font-mono tabular-nums ${isOwn ? 'text-white/55' : 'text-muted-foreground'}`}>
+            {formatTime(playing ? (audioRef.current?.currentTime || 0) : duration)}
+          </span>
+          <div className={`flex items-center gap-1 text-[10px] ${isOwn ? 'text-white/40' : 'text-muted-foreground/60'}`}>
+            <Mic size={10} />
+            <span>Voice</span>
+          </div>
+        </div>
       </div>
     </div>
   );
