@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Message, Chat } from '@/types/chat';
 import ContextMenu, { ContextMenuItem } from './ContextMenu';
 import PollMessage from './PollMessage';
@@ -26,6 +26,7 @@ interface MessageBubbleProps {
   searchHighlight: string;
   isSearchMatch: boolean;
   isCurrentSearchMatch: boolean;
+  isMobile?: boolean;
 }
 
 // Enhanced text formatter — now accepts isOwn for contrast-aware inline styles
@@ -145,13 +146,37 @@ const getSenderColor = (senderId: string): string => {
 const MessageBubble: React.FC<MessageBubbleProps> = ({
   message, chat, onReply, onEdit, onDelete, onForward, onPin, onReaction,
   onBookmark, onTranslate, onCopyLink, onSelect, onVotePoll, onOpenComments,
-  selectMode, isSelected, onToggleSelect, searchHighlight, isSearchMatch, isCurrentSearchMatch,
+  selectMode, isSelected, onToggleSelect, searchHighlight, isSearchMatch, isCurrentSearchMatch, isMobile,
 }) => {
   const [hovered, setHovered] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [burst, setBurst] = useState<{ emoji: string; particles: { tx: number; ty: number; rot: number; scale: number }[] } | null>(null);
   const [showReactedBy, setShowReactedBy] = useState<string | null>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Long press handler for mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (selectMode || !isMobile) return;
+    const touch = e.touches[0];
+    longPressTimer.current = setTimeout(() => {
+      setContextMenu({ x: touch.clientX, y: touch.clientY });
+    }, 400);
+  }, [selectMode, isMobile]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
 
   if (message.type === 'service') {
     return (
@@ -243,11 +268,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       <div
         id={`msg-${message.id}`}
         className={`flex ${isOwn && !isChannel ? 'justify-end' : 'justify-start'} mb-1.5 relative group animate-[msgIn_0.2s_ease-out] ${isCurrentSearchMatch ? 'bg-dex-warning/10 rounded-lg' : isSearchMatch ? 'bg-primary/[0.05] rounded-lg' : ''}`}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => { setHovered(false); setShowReactionPicker(false); setShowReactedBy(null); }}
-        onContextMenu={handleContextMenu}
+        onMouseEnter={!isMobile ? () => setHovered(true) : undefined}
+        onMouseLeave={!isMobile ? () => { setHovered(false); setShowReactionPicker(false); setShowReactedBy(null); } : undefined}
+        onContextMenu={!isMobile ? handleContextMenu : undefined}
         onDoubleClick={handleDoubleClick}
         onClick={selectMode ? () => onToggleSelect(message.id) : undefined}
+        onTouchStart={isMobile ? handleTouchStart : undefined}
+        onTouchEnd={isMobile ? handleTouchEnd : undefined}
+        onTouchMove={isMobile ? handleTouchMove : undefined}
       >
         {selectMode && (
           <div className="flex items-center mr-2 flex-shrink-0">
@@ -257,7 +285,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </div>
         )}
 
-        <div className="relative max-w-[320px]">
+        <div className={`relative ${isMobile ? 'max-w-[75vw]' : 'max-w-[320px]'}`}>
           {/* Channel sender name */}
           {isChannel && (
             <div className="text-xs font-semibold mb-1" style={{ color: `hsl(${getSenderColor(message.senderId)})` }}>
@@ -299,8 +327,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
         </div>
 
-        {/* Hover actions */}
-        {hovered && !contextMenu && !selectMode && (
+        {/* Hover actions — hidden on mobile */}
+        {!isMobile && hovered && !contextMenu && !selectMode && (
           <div className={`absolute ${isOwn && !isChannel ? 'right-auto left-0 -translate-x-[calc(100%+4px)]' : 'left-auto right-0 translate-x-[calc(100%+4px)]'} top-0 flex items-center gap-0.5 px-1.5 py-1 rounded-lg bg-popover border border-border shadow-lg animate-[fadeIn_0.12s_ease] z-10`}>
             <button onClick={() => setShowReactionPicker(!showReactionPicker)} className="p-1 hover:bg-dex-hover rounded text-sm">😊</button>
             <button onClick={() => onReply(message)} className="p-1 hover:bg-dex-hover rounded text-sm">↩️</button>
@@ -330,11 +358,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     <div
       id={`msg-${message.id}`}
       className={`flex ${isOwn && !isChannel ? 'justify-end' : 'justify-start'} mb-1.5 relative group animate-[msgIn_0.2s_ease-out] ${isCurrentSearchMatch ? 'bg-dex-warning/10 rounded-lg' : isSearchMatch ? 'bg-primary/[0.05] rounded-lg' : ''}`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setShowReactionPicker(false); setShowReactedBy(null); }}
-      onContextMenu={handleContextMenu}
+      onMouseEnter={!isMobile ? () => setHovered(true) : undefined}
+      onMouseLeave={!isMobile ? () => { setHovered(false); setShowReactionPicker(false); setShowReactedBy(null); } : undefined}
+      onContextMenu={!isMobile ? handleContextMenu : undefined}
       onDoubleClick={handleDoubleClick}
       onClick={selectMode ? () => onToggleSelect(message.id) : undefined}
+      onTouchStart={isMobile ? handleTouchStart : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
+      onTouchMove={isMobile ? handleTouchMove : undefined}
     >
       {selectMode && (
         <div className="flex items-center mr-2 flex-shrink-0">
@@ -345,7 +376,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       )}
 
       <div
-        className={`relative px-3 py-2 ${isChannel ? 'w-full max-w-full rounded-xl bg-dex-bubble-other py-4' : isOwn ? 'max-w-[480px] rounded-[18px_18px_4px_18px] bg-gradient-to-br from-primary to-[hsl(252,60%,48%)]' : 'max-w-[480px] rounded-[18px_18px_18px_4px] bg-dex-bubble-other'} ${message.pinned ? `border ${isOwn ? 'border-white/20' : 'border-primary/30'}` : ''} ${isSelected ? 'ring-2 ring-primary/50' : ''}`}
+        className={`relative px-3 py-2 ${isChannel ? 'w-full max-w-full rounded-xl bg-dex-bubble-other py-4' : isOwn ? `${isMobile ? 'max-w-[85vw]' : 'max-w-[480px]'} rounded-[18px_18px_4px_18px] bg-gradient-to-br from-primary to-[hsl(252,60%,48%)]` : `${isMobile ? 'max-w-[85vw]' : 'max-w-[480px]'} rounded-[18px_18px_18px_4px] bg-dex-bubble-other`} ${message.pinned ? `border ${isOwn ? 'border-white/20' : 'border-primary/30'}` : ''} ${isSelected ? 'ring-2 ring-primary/50' : ''}`}
       >
         {/* Scheduled indicator */}
         {message.scheduled && (
@@ -487,8 +518,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         )}
       </div>
 
-      {/* Hover actions — position left of own bubbles, right of others */}
-      {hovered && !contextMenu && !selectMode && (
+      {/* Hover actions — hidden on mobile (use long-press instead) */}
+      {!isMobile && hovered && !contextMenu && !selectMode && (
         <div className={`absolute ${isOwn && !isChannel ? 'right-auto left-0 -translate-x-[calc(100%+4px)]' : 'left-auto right-0 translate-x-[calc(100%+4px)]'} top-0 flex items-center gap-0.5 px-1.5 py-1 rounded-lg bg-popover border border-border shadow-lg animate-[fadeIn_0.12s_ease] z-10`}>
           <button onClick={() => setShowReactionPicker(!showReactionPicker)} className="p-1 hover:bg-dex-hover rounded text-sm">😊</button>
           <button onClick={() => onReply(message)} className="p-1 hover:bg-dex-hover rounded text-sm">↩️</button>

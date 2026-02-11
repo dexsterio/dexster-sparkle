@@ -4,6 +4,7 @@ import { X, Search } from 'lucide-react';
 interface GifPickerProps {
   onSelect: (gifUrl: string) => void;
   onClose: () => void;
+  isMobile?: boolean;
 }
 
 // Curated GIFs using public Giphy embed URLs (these are publicly accessible)
@@ -78,7 +79,7 @@ const GIF_CATEGORIES: Record<string, { label: string; gifs: { url: string; thumb
 
 const allGifs = Object.values(GIF_CATEGORIES).flatMap(c => c.gifs);
 
-const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
+const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose, isMobile }) => {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('trending');
 
@@ -88,6 +89,57 @@ const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
     }
     return GIF_CATEGORIES[activeCategory]?.gifs || [];
   }, [search, activeCategory]);
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="fixed inset-0 z-[39]" onClick={onClose} />
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-popover border-t border-border rounded-t-2xl shadow-2xl flex flex-col animate-[slideUp_0.25s_ease-out] overflow-hidden" style={{ maxHeight: '65vh', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto my-2" />
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+            <span className="text-sm font-semibold text-foreground">GIFs</span>
+            <div className="flex-1" />
+            <button onClick={onClose} className="p-1 rounded active:bg-dex-hover text-muted-foreground"><X size={16} /></button>
+          </div>
+          <div className="px-3 py-2">
+            <div className="flex items-center gap-2 bg-muted rounded-lg px-2.5 py-2">
+              <Search size={14} className="text-muted-foreground flex-shrink-0" />
+              <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Search GIFs..."
+                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
+              {search && <button onClick={() => setSearch('')} className="text-muted-foreground active:text-foreground"><X size={12} /></button>}
+            </div>
+          </div>
+          {!search && (
+            <div className="flex gap-1 px-2 pb-1.5 overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+              {Object.entries(GIF_CATEGORIES).map(([key, cat]) => (
+                <button key={key} onClick={() => setActiveCategory(key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${activeCategory === key ? 'bg-primary/20 text-primary' : 'text-muted-foreground active:bg-dex-hover'}`}>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex-1 overflow-y-auto px-2 pb-2">
+            {filteredGifs.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">{search ? 'No GIFs found' : 'No GIFs'}</div>
+            ) : (
+              <div className="grid grid-cols-2 gap-1.5">
+                {filteredGifs.map((gif, i) => (
+                  <button key={`${gif.url}-${i}`} onClick={() => onSelect(gif.url)}
+                    className="relative rounded-lg overflow-hidden aspect-square active:ring-2 active:ring-primary transition-all">
+                    <img src={gif.thumb} alt={gif.alt} loading="lazy" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="px-3 py-1.5 border-t border-border text-center">
+            <span className="text-[10px] text-muted-foreground">Powered by GIPHY</span>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <div className="absolute bottom-full right-0 mb-2 w-[340px] h-[420px] bg-popover border border-border rounded-2xl shadow-2xl z-40 flex flex-col animate-[contextIn_0.15s_ease-out] overflow-hidden">
