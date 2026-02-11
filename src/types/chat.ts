@@ -123,6 +123,7 @@ export interface Chat {
   type: ChatType;
   avatar: string;
   avatarColor: string;
+  avatarUrl?: string;
   online?: boolean;
   lastSeen?: string;
   muted: boolean;
@@ -167,6 +168,10 @@ export interface Chat {
   permissions?: GroupPermissions;
   slowMode?: number;
   chatHistoryForNewMembers?: boolean;
+  // Channel extras
+  restrictedContent?: boolean;
+  joinToSend?: boolean;
+  joinApproval?: boolean;
 }
 
 export interface Comment {

@@ -664,12 +664,17 @@ const DexsterChat: React.FC = () => {
   }, [apiCreateGroup, queryClient, showToast]);
 
   // ========= CREATE CHANNEL =========
-  const createChannel = useCallback(async (name: string, description: string, isPublic: boolean, commentsEnabled: boolean, reactionsEnabled: boolean) => {
+  const createChannel = useCallback(async (data: {
+    name: string; description: string; isPublic: boolean; comments: boolean; reactions: boolean;
+    avatarFile?: File; signMessages: boolean; joinApproval: boolean;
+  }) => {
     try {
-      const result = await apiCreateChannel({ name, description, isPublic });
+      const result = await apiCreateChannel({ name: data.name, description: data.description, isPublic: data.isPublic });
+      // TODO: upload avatarFile if provided, update channel settings (comments, reactions, signMessages, joinApproval)
       setShowChannelModal(false);
       setActiveChat(String((result as any).id));
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      showToast('Channel created!');
     } catch {
       setShowChannelModal(false);
       showToast('Failed to create channel');
