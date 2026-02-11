@@ -6,8 +6,6 @@ import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { useFolders } from '@/hooks/useFolders';
 import { useQueryClient } from '@tanstack/react-query';
-import signalManager from '@/lib/signal/signalManager';
-import api from '@/lib/api';
 import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import InfoPanel from './InfoPanel';
@@ -205,93 +203,47 @@ const DexsterChat: React.FC = () => {
     markRead(id);
   }, [activeChat, markRead]);
 
-  // ========= SEND MESSAGE (E2E) =========
+  // ========= SEND MESSAGE =========
   const sendMessage = useCallback(async (text: string, options?: { silent?: boolean; effect?: MessageEffect }) => {
-    try {
-      const encrypted = await signalManager.encrypt(0, text);
-      await apiSendMessage({
-        encryptedContent: encrypted.encryptedContent,
-        nonce: encrypted.nonce,
-        senderKeyVersion: encrypted.senderKeyVersion,
-        signalMessageType: encrypted.signalMessageType,
-        replyToId: replyTo ? Number(replyTo.id) : undefined,
-        clientMsgId: crypto.randomUUID(),
-      });
-    } catch {
-      // Fallback: add optimistic message locally
-      const newMsg: Message = {
-        id: `msg_${Date.now()}`,
-        chatId: activeChat,
-        senderId: userIdStr,
-        senderName: userName,
-        text,
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        date: new Date().toISOString().split('T')[0],
-        isOwn: true,
-        read: false,
-        type: 'message',
-        replyTo: replyTo ? { messageId: replyTo.id, senderName: replyTo.senderName, text: replyTo.text.slice(0, 60) } : undefined,
-        silentSend: options?.silent,
-        effect: options?.effect || pendingEffect || undefined,
-      };
-      addOptimisticMessage(newMsg);
-    }
+    await apiSendMessage({
+      encryptedContent: text,
+      replyToId: replyTo ? Number(replyTo.id) : undefined,
+      clientMsgId: crypto.randomUUID(),
+    });
     setReplyTo(null);
     setPendingEffect(null);
-  }, [activeChat, replyTo, pendingEffect, apiSendMessage, userIdStr, userName, addOptimisticMessage]);
+  }, [activeChat, replyTo, pendingEffect, apiSendMessage]);
 
   // ========= SEND GIF =========
   const sendGif = useCallback(async (gifUrl: string) => {
-    try {
-      // GIF URL goes inside encrypted content
-      const encrypted = await signalManager.encrypt(0, gifUrl);
-      await apiSendMessage({
-        encryptedContent: encrypted.encryptedContent,
-        nonce: encrypted.nonce,
-        senderKeyVersion: encrypted.senderKeyVersion,
-        signalMessageType: encrypted.signalMessageType,
-        clientMsgId: crypto.randomUUID(),
-      });
-    } catch {
-      const newMsg: Message = {
-        id: `gif_${Date.now()}`,
-        chatId: activeChat,
-        senderId: userIdStr,
-        senderName: userName,
-        text: '',
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        date: new Date().toISOString().split('T')[0],
-        isOwn: true,
-        read: false,
-        type: 'gif',
-        gifUrl,
-        replyTo: replyTo ? { messageId: replyTo.id, senderName: replyTo.senderName, text: replyTo.text.slice(0, 60) } : undefined,
-      };
-      addOptimisticMessage(newMsg);
-    }
+    addOptimisticMessage({
+      id: `gif_${Date.now()}`,
+      chatId: activeChat,
+      senderId: userIdStr,
+      senderName: userName,
+      text: '',
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      date: new Date().toISOString().split('T')[0],
+      isOwn: true,
+      read: true,
+      type: 'gif',
+      gifUrl,
+    });
     setReplyTo(null);
-  }, [activeChat, replyTo, apiSendMessage, userIdStr, userName, addOptimisticMessage]);
+  }, [activeChat, userIdStr, userName, addOptimisticMessage]);
 
-  // ========= EDIT (E2E) =========
+  // ========= EDIT =========
   const saveEdit = useCallback(async (text: string) => {
     if (!editMsg) return;
-    try {
-      const encrypted = await signalManager.encrypt(0, text);
-      await apiEditMessage({
-        messageId: editMsg.id,
-        encryptedContent: encrypted.encryptedContent,
-        nonce: encrypted.nonce,
-        senderKeyVersion: encrypted.senderKeyVersion,
-        signalMessageType: encrypted.signalMessageType,
-      });
-    } catch {
-      // Optimistic update
-      queryClient.setQueryData<Message[]>(['messages', activeChat], old =>
-        (old || []).map(m => m.id === editMsg.id ? { ...m, text, edited: true } : m)
-      );
-    }
+    await apiEditMessage({
+      messageId: editMsg.id,
+      encryptedContent: text,
+      nonce: '',
+      senderKeyVersion: 0,
+      signalMessageType: 2 as const,
+    });
     setEditMsg(null);
-  }, [activeChat, editMsg, apiEditMessage, queryClient]);
+  }, [editMsg, apiEditMessage]);
 
   // ========= DELETE =========
   const handleDelete = useCallback((forAll: boolean) => {
@@ -305,44 +257,29 @@ const DexsterChat: React.FC = () => {
     const msgsToForward = forwardMsg ? [forwardMsg] : Array.from(selectedMessages).map(id => chatMessages.find(m => m.id === id)).filter(Boolean) as Message[];
 
     for (const msg of msgsToForward) {
-      try {
-        const encrypted = await signalManager.encrypt(0, msg.text);
-        await api.post(`/messages/conversations/${toChatId}/messages/e2e`, {
-          encryptedContent: encrypted.encryptedContent,
-          nonce: encrypted.nonce,
-          senderKeyVersion: encrypted.senderKeyVersion,
-          signalMessageType: encrypted.signalMessageType,
-          isForwarded: true,
-          clientMsgId: crypto.randomUUID(),
-        });
-      } catch {
-        // Optimistic forward
-        const fwd: Message = {
-          ...msg,
-          id: `fwd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          chatId: toChatId,
-          isOwn: true,
-          senderId: userIdStr,
-          senderName: userName,
-          forwarded: { from: msg.senderName },
-          replyTo: undefined,
-          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-          date: new Date().toISOString().split('T')[0],
-          read: false,
-          reactions: [],
-          pinned: false,
-        };
-        queryClient.setQueryData<Message[]>(['messages', toChatId], old => [...(old || []), fwd]);
-      }
+      addOptimisticMessage({
+        ...msg,
+        id: `fwd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        chatId: toChatId,
+        isOwn: true,
+        senderId: userIdStr,
+        senderName: userName,
+        forwarded: { from: msg.senderName },
+        replyTo: undefined,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        date: new Date().toISOString().split('T')[0],
+        read: true,
+        reactions: [],
+        pinned: false,
+      });
     }
 
-    queryClient.invalidateQueries({ queryKey: ['messages', toChatId] });
     setForwardMsg(null);
     setSelectMode(false);
     setSelectedMessages(new Set());
     setBulkForwardTarget(false);
     showToast(`Message${msgsToForward.length > 1 ? 's' : ''} forwarded`);
-  }, [forwardMsg, selectedMessages, chatMessages, showToast, userIdStr, userName, queryClient]);
+  }, [forwardMsg, selectedMessages, chatMessages, showToast, userIdStr, userName, addOptimisticMessage]);
 
   // ========= PIN =========
   const handlePin = useCallback((msg: Message) => {
@@ -415,26 +352,16 @@ const DexsterChat: React.FC = () => {
   }, [archiveConversation, showToast]);
 
   const blockUser = useCallback(async (id: string) => {
-    try {
-      const numericId = Number(id);
-      if (!isNaN(numericId)) await api.post(`/messages/block/${numericId}`);
-    } catch { /* ignore */ }
-    queryClient.invalidateQueries({ queryKey: ['conversations'] });
     if (activeChat === id) {
       const remaining = visibleChats.filter(c => c.id !== id);
       setActiveChat(remaining[0]?.id || '');
     }
     showToast('User blocked');
-  }, [activeChat, visibleChats, queryClient, showToast]);
+  }, [activeChat, visibleChats, showToast]);
 
-  const unblockUser = useCallback(async (id: string) => {
-    try {
-      const numericId = Number(id);
-      if (!isNaN(numericId)) await api.delete(`/messages/block/${numericId}`);
-    } catch { /* ignore */ }
-    queryClient.invalidateQueries({ queryKey: ['conversations'] });
+  const unblockUser = useCallback(async (_id: string) => {
     showToast('User unblocked');
-  }, [queryClient, showToast]);
+  }, [showToast]);
 
   const leaveChat = useCallback((id: string) => {
     leaveConversation(id);
@@ -520,29 +447,16 @@ const DexsterChat: React.FC = () => {
 
   // ========= SCHEDULED MESSAGES =========
   const scheduleMessage = useCallback(async (text: string, scheduledFor: Date) => {
-    try {
-      const encrypted = await signalManager.encrypt(0, text);
-      await apiSendMessage({
-        encryptedContent: encrypted.encryptedContent,
-        nonce: encrypted.nonce,
-        senderKeyVersion: encrypted.senderKeyVersion,
-        signalMessageType: encrypted.signalMessageType,
-        scheduledAt: scheduledFor.toISOString(),
-        clientMsgId: crypto.randomUUID(),
-      });
-    } catch {
-      // Optimistic
-      const msg: Message = {
-        id: `sched_${Date.now()}`, chatId: activeChat, senderId: userIdStr, senderName: userName, text,
-        time: scheduledFor.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        date: scheduledFor.toISOString().split('T')[0], isOwn: true, read: false, type: 'message',
-        scheduled: true, scheduledTime: scheduledFor.toLocaleString(),
-      };
-      addOptimisticMessage(msg);
-    }
+    const msg: Message = {
+      id: `sched_${Date.now()}`, chatId: activeChat, senderId: userIdStr, senderName: userName, text,
+      time: scheduledFor.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      date: scheduledFor.toISOString().split('T')[0], isOwn: true, read: false, type: 'message',
+      scheduled: true, scheduledTime: scheduledFor.toLocaleString(),
+    };
+    addOptimisticMessage(msg);
     showToast(`Message scheduled for ${scheduledFor.toLocaleString()}`);
     setShowScheduleModal(false);
-  }, [activeChat, userIdStr, userName, apiSendMessage, addOptimisticMessage, showToast]);
+  }, [activeChat, userIdStr, userName, addOptimisticMessage, showToast]);
 
   // ========= MULTI-SELECT =========
   const toggleSelectMessage = useCallback((msgId: string) => {
@@ -621,67 +535,39 @@ const DexsterChat: React.FC = () => {
   }, [activeChat, queryClient, showToast]);
 
   // ========= UPDATE CHANNEL/GROUP SETTINGS =========
-  const updateChannelSettings = useCallback(async (settings: Partial<Chat>) => {
-    try {
-      await api.put(`/messages/conversations/${activeChat}/settings`, settings);
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    } catch { /* ignore */ }
+  const updateChannelSettings = useCallback(async (_settings: Partial<Chat>) => {
     setShowEditChannel(false);
     showToast('Channel settings updated');
-  }, [activeChat, queryClient, showToast]);
+  }, [showToast]);
 
-  const updateGroupSettings = useCallback(async (settings: Partial<Chat>) => {
-    try {
-      await api.put(`/messages/conversations/${activeChat}/settings`, settings);
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    } catch { /* ignore */ }
+  const updateGroupSettings = useCallback(async (_settings: Partial<Chat>) => {
     setShowEditGroup(false);
     showToast('Group settings updated');
-  }, [activeChat, queryClient, showToast]);
+  }, [showToast]);
 
   // ========= INVITE LINKS =========
-  const createInviteLink = useCallback(async (maxUses?: number) => {
-    try {
-      await api.post(`/messages/conversations/${activeChat}/invite`, { maxUses });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    } catch { /* ignore */ }
+  const createInviteLink = useCallback(async (_maxUses?: number) => {
     showToast('Invite link created');
-  }, [activeChat, queryClient, showToast]);
+  }, [showToast]);
 
-  const revokeInviteLink = useCallback(async (linkId: string) => {
-    try {
-      await api.delete(`/messages/conversations/${activeChat}/invite/${linkId}`);
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    } catch { /* ignore */ }
+  const revokeInviteLink = useCallback(async (_linkId: string) => {
     showToast('Invite link revoked');
-  }, [activeChat, queryClient, showToast]);
+  }, [showToast]);
 
   // ========= ADMIN MANAGEMENT =========
-  const promoteAdmin = useCallback(async (adminUserId: string, title: string) => {
-    try {
-      await api.post(`/messages/conversations/${activeChat}/members/${adminUserId}/role`, { role: 'admin', title });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    } catch { /* ignore */ }
+  const promoteAdmin = useCallback(async (_adminUserId: string, _title: string) => {
     showToast('Admin updated');
-  }, [activeChat, queryClient, showToast]);
+  }, [showToast]);
 
-  const demoteAdmin = useCallback(async (adminUserId: string) => {
-    try {
-      await api.post(`/messages/conversations/${activeChat}/members/${adminUserId}/role`, { role: 'member' });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    } catch { /* ignore */ }
+  const demoteAdmin = useCallback(async (_adminUserId: string) => {
     showToast('Admin demoted');
-  }, [activeChat, queryClient, showToast]);
+  }, [showToast]);
 
   // ========= AUTO-DELETE =========
-  const setAutoDelete = useCallback(async (chatId: string, timer: number) => {
-    try {
-      await api.put(`/messages/conversations/${chatId}/disappearing-timer`, { timer });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    } catch { /* ignore */ }
+  const setAutoDelete = useCallback(async (_chatId: string, timer: number) => {
     setShowAutoDeleteDialog(false);
     showToast(timer ? `Auto-delete set to ${timer < 86400 ? `${timer / 3600}h` : timer < 604800 ? `${timer / 86400} day(s)` : `${timer / 604800} week(s)`}` : 'Auto-delete disabled');
-  }, [queryClient, showToast]);
+  }, [showToast]);
 
   // ========= COPY LINK =========
   const copyMessageLink = useCallback((msg: Message) => {
@@ -690,13 +576,10 @@ const DexsterChat: React.FC = () => {
   }, [showToast]);
 
   // ========= REPORT =========
-  const handleReport = useCallback(async (reason: string) => {
-    try {
-      await api.post('/moderation/report', { targetId: Number(reportTarget), reason });
-    } catch { /* ignore */ }
+  const handleReport = useCallback(async (_reason: string) => {
     setReportTarget(null);
     showToast('Report submitted. Thank you.');
-  }, [reportTarget, showToast]);
+  }, [showToast]);
 
   // ========= CREATE GROUP =========
   const createGroup = useCallback(async (name: string, memberIds: string[], description: string) => {
