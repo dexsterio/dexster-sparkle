@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { Chat, CustomFolder } from '@/types/chat';
 import ContextMenu, { ContextMenuItem } from './ContextMenu';
 import { Search, Edit3, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import MobileBottomNav, { MobileTab } from './MobileBottomNav';
 
 interface SidebarProps {
   chats: Chat[];
@@ -48,6 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [mobileTab, setMobileTab] = useState<MobileTab>('chats');
   const newMenuRef = useRef<HTMLDivElement>(null);
   const chatListRef = useRef<HTMLDivElement>(null);
 
@@ -183,133 +185,175 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* Folder Tabs */}
-      <div className="flex gap-1 px-4 pb-2 overflow-x-auto scrollbar-none" style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}>
-        {allFolders.map(f => {
-          const unread = folderUnread(f.id);
-          const isActive = activeFolder === f.id;
-          return (
-              <button key={f.id} onClick={() => setActiveFolder(f.id)}
-              className={`flex items-center gap-1.5 ${isMobile ? 'px-4 py-2 text-sm' : 'px-3 py-1.5 text-xs'} rounded-full font-medium whitespace-nowrap transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}>
-              {f.label}
-              {unread > 0 && (
-                <span className={`text-[10px] px-1.5 rounded-full ${isActive ? 'bg-white/30 text-white' : 'bg-primary-foreground/20'}`}>{unread}</span>
-              )}
-            </button>
-          );
-        })}
-        <button onClick={onCreateFolder} className="flex items-center px-2 py-1.5 rounded-full text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors">+</button>
-      </div>
-
-      {/* Chat List */}
-      <div
-        ref={chatListRef}
-        className="flex-1 overflow-y-auto relative"
-        onTouchStart={isMobile ? handlePullStart : undefined}
-        onTouchMove={isMobile ? handlePullMove : undefined}
-        onTouchEnd={isMobile ? handlePullEnd : undefined}
-      >
-        {/* Pull-to-refresh indicator */}
-        {isMobile && (pullDistance > 0 || isRefreshing) && (
-          <div
-            className="flex items-center justify-center transition-all duration-200"
-            style={{ height: isRefreshing ? 48 : pullDistance, opacity: Math.min(pullDistance / 70, 1) }}
-          >
-            <RefreshCw
-              size={20}
-              className={`text-primary ${isRefreshing ? 'animate-spin' : ''}`}
-              style={!isRefreshing ? { transform: `rotate(${pullDistance * 3}deg)` } : undefined}
-            />
-          </div>
-        )}
-        {/* Archived section */}
-        {archivedChats.length > 0 && (
-          <button onClick={() => setShowArchived(!showArchived)}
-            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-dex-hover transition-colors text-left border-b border-border">
-            <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary text-lg">📁</div>
-            <div className="flex-1 min-w-0">
-              <span className="text-sm font-semibold text-foreground">Archived Chats</span>
-              <p className="text-xs text-muted-foreground">{archivedChats.length} chat{archivedChats.length !== 1 ? 's' : ''}</p>
-            </div>
-            {showArchived ? <ChevronDown size={16} className="text-muted-foreground" /> : <ChevronRight size={16} className="text-muted-foreground" />}
-          </button>
-        )}
-        {showArchived && archivedChats.map(chat => (
-          <button key={chat.id} onClick={() => { onSelectChat(chat.id); }}
-            onContextMenu={e => handleContextMenu(e, chat.id)}
-            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-dex-hover transition-colors text-left bg-muted/20">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold text-white" style={{ background: `hsl(${chat.avatarColor})` }}>{chat.avatar}</div>
-            <div className="flex-1 min-w-0">
-              <span className="text-sm font-semibold text-foreground">{chat.name}</span>
-              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{chat.lastMessage}</p>
-            </div>
-            <span className="text-[11px] text-muted-foreground flex-shrink-0">{chat.lastTime}</span>
-          </button>
-        ))}
-
-        {filteredChats.map((chat, i) => {
-          const isPinned = chat.pinned;
-          const nextIsPinned = filteredChats[i + 1]?.pinned;
-          const draft = chatDrafts[chat.id];
-          const isSaved = chat.id === 'saved';
-          const isActive = activeChat === chat.id;
-          return (
-            <React.Fragment key={chat.id}>
-                <button onClick={() => onSelectChat(chat.id)} onContextMenu={(e) => handleContextMenu(e, chat.id)}
-                className={`w-full flex items-center gap-3 px-4 ${isMobile ? 'py-3.5' : 'py-2.5'} transition-colors text-left active:bg-primary/[0.1] ${isActive ? 'bg-primary/[0.15] border-l-[3px] border-l-primary' : 'hover:bg-dex-hover border-l-[3px] border-l-transparent'}`}>
-                <div className="relative flex-shrink-0">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold text-white ${isSaved ? 'bg-primary/20 text-2xl' : ''}`}
-                    style={isSaved ? {} : { background: `hsl(${chat.avatarColor})` }}>
-                    {isSaved ? '🔖' : chat.avatar}
-                  </div>
-                  {chat.online && !isSaved && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-dex-online border-2 border-card" style={{ animation: 'pulseOnline 2s infinite' }} />
+      {/* Show chat content only on 'chats' tab (mobile) or always (desktop) */}
+      {(!isMobile || mobileTab === 'chats') && (
+        <>
+          {/* Folder Tabs */}
+          <div className="flex gap-1 px-4 pb-2 overflow-x-auto scrollbar-none" style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}>
+            {allFolders.map(f => {
+              const unread = folderUnread(f.id);
+              const isFolderActive = activeFolder === f.id;
+              return (
+                <button key={f.id} onClick={() => setActiveFolder(f.id)}
+                  className={`flex items-center gap-1.5 ${isMobile ? 'px-4 py-2 text-sm' : 'px-3 py-1.5 text-xs'} rounded-full font-medium whitespace-nowrap transition-colors ${isFolderActive ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}>
+                  {f.label}
+                  {unread > 0 && (
+                    <span className={`text-[10px] px-1.5 rounded-full ${isFolderActive ? 'bg-white/30 text-white' : 'bg-primary-foreground/20'}`}>{unread}</span>
                   )}
-                </div>
+                </button>
+              );
+            })}
+            <button onClick={onCreateFolder} className="flex items-center px-2 py-1.5 rounded-full text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors">+</button>
+          </div>
+
+          {/* Chat List */}
+          <div
+            ref={chatListRef}
+            className="flex-1 overflow-y-auto relative"
+            onTouchStart={isMobile ? handlePullStart : undefined}
+            onTouchMove={isMobile ? handlePullMove : undefined}
+            onTouchEnd={isMobile ? handlePullEnd : undefined}
+          >
+            {/* Pull-to-refresh indicator */}
+            {isMobile && (pullDistance > 0 || isRefreshing) && (
+              <div
+                className="flex items-center justify-center transition-all duration-200"
+                style={{ height: isRefreshing ? 48 : pullDistance, opacity: Math.min(pullDistance / 70, 1) }}
+              >
+                <RefreshCw
+                  size={20}
+                  className={`text-primary ${isRefreshing ? 'animate-spin' : ''}`}
+                  style={!isRefreshing ? { transform: `rotate(${pullDistance * 3}deg)` } : undefined}
+                />
+              </div>
+            )}
+
+            {/* Archived section */}
+            {archivedChats.length > 0 && (
+              <button onClick={() => setShowArchived(!showArchived)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-dex-hover transition-colors text-left border-b border-border">
+                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary text-lg">📁</div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 truncate">
-                      {chat.type === 'channel' && <span className="text-xs">📢</span>}
-                      {chat.type === 'group' && <span className="text-xs">👥</span>}
-                      <span className="text-sm font-semibold text-foreground truncate">{chat.name}</span>
-                      {chat.pinned && <span className="text-xs text-muted-foreground">📌</span>}
-                      {chat.muted && <span className="text-xs text-muted-foreground">🔕</span>}
-                    </div>
-                    <span className="text-[11px] text-muted-foreground flex-shrink-0">{chat.lastTime}</span>
-                  </div>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                      {chat.typing ? (
-                        <span className="text-primary">typing...</span>
-                      ) : draft ? (
-                        <><span className="text-destructive font-medium">[Draft]</span> {draft.slice(0, 30)}</>
-                      ) : (
-                        <>
-                          {chat.lastMessageSender && <span className="font-medium text-foreground/70">{chat.lastMessageSender}: </span>}
-                          {chat.lastMessage}
-                        </>
-                      )}
-                    </p>
-                    {(chat.unread > 0 || chat.markedUnread) && (
-                      chat.markedUnread && chat.unread === 0 ? (
-                        <span className="w-3 h-3 rounded-full bg-primary flex-shrink-0 ml-2" />
-                      ) : (
-                        <span className={`text-[11px] font-bold px-1.5 min-w-[20px] h-5 flex items-center justify-center rounded-full flex-shrink-0 ml-2 ${chat.muted ? 'bg-muted-foreground/40' : 'bg-primary'} text-primary-foreground`}>
-                          {chat.unread}
-                        </span>
-                      )
-                    )}
-                  </div>
+                  <span className="text-sm font-semibold text-foreground">Archived Chats</span>
+                  <p className="text-xs text-muted-foreground">{archivedChats.length} chat{archivedChats.length !== 1 ? 's' : ''}</p>
                 </div>
+                {showArchived ? <ChevronDown size={16} className="text-muted-foreground" /> : <ChevronRight size={16} className="text-muted-foreground" />}
               </button>
-              {isPinned && !nextIsPinned && <div className="h-px bg-border/60 mx-4 my-0.5" />}
-            </React.Fragment>
-          );
-        })}
-      </div>
+            )}
+            {showArchived && archivedChats.map(chat => (
+              <button key={chat.id} onClick={() => { onSelectChat(chat.id); }}
+                onContextMenu={e => handleContextMenu(e, chat.id)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-dex-hover transition-colors text-left bg-muted/20">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold text-white" style={{ background: `hsl(${chat.avatarColor})` }}>{chat.avatar}</div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-semibold text-foreground">{chat.name}</span>
+                  <p className="text-xs text-muted-foreground truncate max-w-[200px]">{chat.lastMessage}</p>
+                </div>
+                <span className="text-[11px] text-muted-foreground flex-shrink-0">{chat.lastTime}</span>
+              </button>
+            ))}
+
+            {filteredChats.map((chat, i) => {
+              const isPinned = chat.pinned;
+              const nextIsPinned = filteredChats[i + 1]?.pinned;
+              const draft = chatDrafts[chat.id];
+              const isSaved = chat.id === 'saved';
+              const isActive = activeChat === chat.id;
+              return (
+                <React.Fragment key={chat.id}>
+                  <button onClick={() => onSelectChat(chat.id)} onContextMenu={(e) => handleContextMenu(e, chat.id)}
+                    className={`w-full flex items-center gap-3 px-4 ${isMobile ? 'py-3.5' : 'py-2.5'} transition-colors text-left active:bg-primary/[0.1] ${isActive ? 'bg-primary/[0.15] border-l-[3px] border-l-primary' : 'hover:bg-dex-hover border-l-[3px] border-l-transparent'}`}>
+                    <div className="relative flex-shrink-0">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold text-white ${isSaved ? 'bg-primary/20 text-2xl' : ''}`}
+                        style={isSaved ? {} : { background: `hsl(${chat.avatarColor})` }}>
+                        {isSaved ? '🔖' : chat.avatar}
+                      </div>
+                      {chat.online && !isSaved && (
+                        <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-dex-online border-2 border-card" style={{ animation: 'pulseOnline 2s infinite' }} />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 truncate">
+                          {chat.type === 'channel' && <span className="text-xs">📢</span>}
+                          {chat.type === 'group' && <span className="text-xs">👥</span>}
+                          <span className="text-sm font-semibold text-foreground truncate">{chat.name}</span>
+                          {chat.pinned && <span className="text-xs text-muted-foreground">📌</span>}
+                          {chat.muted && <span className="text-xs text-muted-foreground">🔕</span>}
+                        </div>
+                        <span className="text-[11px] text-muted-foreground flex-shrink-0">{chat.lastTime}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-0.5">
+                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                          {chat.typing ? (
+                            <span className="text-primary">typing...</span>
+                          ) : draft ? (
+                            <><span className="text-destructive font-medium">[Draft]</span> {draft.slice(0, 30)}</>
+                          ) : (
+                            <>
+                              {chat.lastMessageSender && <span className="font-medium text-foreground/70">{chat.lastMessageSender}: </span>}
+                              {chat.lastMessage}
+                            </>
+                          )}
+                        </p>
+                        {(chat.unread > 0 || chat.markedUnread) && (
+                          chat.markedUnread && chat.unread === 0 ? (
+                            <span className="w-3 h-3 rounded-full bg-primary flex-shrink-0 ml-2" />
+                          ) : (
+                            <span className={`text-[11px] font-bold px-1.5 min-w-[20px] h-5 flex items-center justify-center rounded-full flex-shrink-0 ml-2 ${chat.muted ? 'bg-muted-foreground/40' : 'bg-primary'} text-primary-foreground`}>
+                              {chat.unread}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                  {isPinned && !nextIsPinned && <div className="h-px bg-border/60 mx-4 my-0.5" />}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Contacts tab placeholder */}
+      {isMobile && mobileTab === 'contacts' && (
+        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3 px-6">
+          <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center text-3xl">👤</div>
+          <span className="text-sm font-medium">Contacts</span>
+          <span className="text-xs text-center">Your contacts will appear here</span>
+        </div>
+      )}
+
+      {/* Saved tab placeholder */}
+      {isMobile && mobileTab === 'saved' && (
+        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3 px-6">
+          <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center text-3xl">🔖</div>
+          <span className="text-sm font-medium">Saved Messages</span>
+          <span className="text-xs text-center">Your bookmarked messages will appear here</span>
+        </div>
+      )}
+
+      {/* Settings tab placeholder */}
+      {isMobile && mobileTab === 'settings' && (
+        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3 px-6">
+          <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center text-3xl">⚙️</div>
+          <span className="text-sm font-medium">Settings</span>
+          <span className="text-xs text-center">App settings coming soon</span>
+        </div>
+      )}
 
       {contextMenu && (
         <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextItems} onClose={() => setContextMenu(null)} />
+      )}
+
+      {/* Mobile bottom navigation */}
+      {isMobile && (
+        <MobileBottomNav
+          activeTab={mobileTab}
+          onTabChange={setMobileTab}
+          unreadCount={chats.reduce((s, c) => s + c.unread, 0)}
+        />
       )}
     </div>
   );
