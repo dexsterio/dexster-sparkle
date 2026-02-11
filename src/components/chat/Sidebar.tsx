@@ -35,6 +35,8 @@ interface SidebarProps {
   onClearHistory: (id: string) => void;
   isMobile?: boolean;
   onRefresh?: () => void;
+  collapsed?: boolean;
+  onExpand?: () => void;
 }
 
 const DEFAULT_FOLDERS = [
@@ -48,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   chats, archivedChats, activeChat, onSelectChat, onPinChat, onMuteChat, onMuteWithDuration,
   onDeleteChat, onMarkRead, onMarkUnread, onArchiveChat, onUnarchiveChat, onBlockUser,
   onCreateChannel, onCreateGroup, onCreateFolder, onNewChat, customFolders, onMoveToFolder, chatDrafts,
-  onClearHistory, isMobile, onRefresh,
+  onClearHistory, isMobile, onRefresh, collapsed, onExpand,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -160,8 +162,60 @@ const Sidebar: React.FC<SidebarProps> = ({
     { label: contextChat.type === 'group' || contextChat.type === 'channel' ? 'Leave' : 'Delete chat', icon: '🗑️', danger: true, onClick: () => onDeleteChat(contextChat.id) },
   ] : [];
 
+  // ========= COLLAPSED MINI MODE =========
+  if (collapsed && !isMobile) {
+    return (
+      <div className="w-full h-screen flex flex-col border-r border-border bg-card">
+        {/* Expand button */}
+        <div className="px-2 py-3 flex justify-center">
+          <button onClick={onExpand} className="p-2 rounded-lg hover:bg-dex-hover transition-colors text-muted-foreground">
+            <Menu size={20} />
+          </button>
+        </div>
+
+        {/* Mini avatar list */}
+        <div className="flex-1 overflow-y-auto px-1 py-1 space-y-1">
+          {filteredChats.map(chat => {
+            const isActive = activeChat === chat.id;
+            const isSaved = chat.id === 'saved';
+            return (
+              <button
+                key={chat.id}
+                onClick={() => onSelectChat(chat.id)}
+                onContextMenu={e => handleContextMenu(e, chat.id)}
+                className={`w-full flex items-center justify-center py-1.5 rounded-lg transition-colors ${isActive ? 'bg-primary/[0.15]' : 'hover:bg-dex-hover'}`}
+                title={chat.name}
+              >
+                <div className="relative">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold text-white ${isSaved ? 'bg-primary/20 text-lg' : ''}`}
+                    style={isSaved ? {} : { background: `hsl(${chat.avatarColor})` }}
+                  >
+                    {isSaved ? '🔖' : chat.avatar}
+                  </div>
+                  {chat.online && !isSaved && (
+                    <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-dex-online border-2 border-card" />
+                  )}
+                  {(chat.unread > 0 || chat.markedUnread) && (
+                    <span className="absolute -top-1 -right-1 text-[9px] font-bold px-1 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      {chat.unread > 0 ? chat.unread : ''}
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {contextMenu && (
+          <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextItems} onClose={() => setContextMenu(null)} />
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className={`${isMobile ? 'w-full' : 'w-[340px]'} h-screen flex flex-col border-r border-border bg-card flex-shrink-0`} style={isMobile ? { paddingTop: 'env(safe-area-inset-top)' } : undefined}>
+    <div className={`${isMobile ? 'w-full' : 'w-full'} h-screen flex flex-col border-r border-border bg-card flex-shrink-0`} style={isMobile ? { paddingTop: 'env(safe-area-inset-top)' } : undefined}>
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">

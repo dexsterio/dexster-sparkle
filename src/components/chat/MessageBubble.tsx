@@ -682,7 +682,7 @@ const VoicePlayer: React.FC<{ src: string; isOwn?: boolean }> = ({ src, isOwn })
   const playedBars = Math.floor(progress * WAVEFORM_BARS);
 
   return (
-    <div className={`flex items-center gap-2.5 min-w-[200px] ${isOwn ? 'px-3 py-2.5 rounded-[18px_18px_4px_18px] bg-gradient-to-br from-primary to-[hsl(252,60%,48%)]' : 'px-3 py-2.5 rounded-[18px_18px_18px_4px] bg-dex-bubble-other'}`}>
+    <div className={`flex items-center gap-2.5 min-w-[200px] ${isOwn ? 'px-3 py-2.5 rounded-[18px_18px_4px_18px] bg-primary' : 'px-3 py-2.5 rounded-[18px_18px_18px_4px] bg-dex-bubble-other'}`}>
       <audio
         ref={audioRef}
         src={src}
