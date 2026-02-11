@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Chat, Message, ChatType, GroupPermissions, InviteLink, AdminEntry, User } from '@/types/chat';
 import { X, Copy, Trash2, Plus, Shield, Crown, Link } from 'lucide-react';
-import { users } from '@/data/mockData';
+import { useUserSearch } from '@/hooks/useUserSearch';
 
 const MODAL_BACKDROP = "fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-[fadeIn_0.15s_ease-out]";
 const MODAL_CARD = "bg-card rounded-2xl shadow-2xl animate-[modalIn_0.2s_ease-out]";
@@ -134,7 +134,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({ onClose,
   );
 };
 
-// ============= CREATE GROUP MODAL =============
+// ============= CREATE GROUP MODAL (with user search via API) =============
 interface CreateGroupModalProps {
   onClose: () => void;
   onCreate: (name: string, memberIds: string[], description: string) => void;
@@ -143,13 +143,22 @@ interface CreateGroupModalProps {
 export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onCreate }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
-  const allUsers = Object.values(users);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState<Map<string, { id: string; name: string; avatar: string; color: string }>>(new Map());
 
-  const toggleMember = (id: string) => {
+  const { data: searchResults, isLoading: isSearching } = useUserSearch(searchQuery);
+
+  const toggleMember = (user: { id: number; displayName: string; username: string; avatarUrl: string | null }) => {
+    const idStr = String(user.id);
     setSelectedMembers(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      const next = new Map(prev);
+      if (next.has(idStr)) {
+        next.delete(idStr);
+      } else {
+        const initials = (user.displayName || user.username).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+        const hue = (user.id * 137) % 360;
+        next.set(idStr, { id: idStr, name: user.displayName || user.username, avatar: initials, color: `${hue} 65% 55%` });
+      }
       return next;
     });
   };
@@ -165,20 +174,51 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onC
         <input value={name} onChange={e => setName(e.target.value)} className="w-full mt-1 mb-3 px-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Group name" />
         <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Description</label>
         <input value={description} onChange={e => setDescription(e.target.value)} className="w-full mt-1 mb-3 px-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Optional" />
-        <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Add Members ({selectedMembers.size})</label>
-        <div className="flex-1 overflow-y-auto space-y-1 mb-4">
-          {allUsers.map(u => (
-            <button key={u.id} onClick={() => toggleMember(u.id)}
-              className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg transition-colors ${selectedMembers.has(u.id) ? 'bg-primary/10 border border-primary/30' : 'hover:bg-dex-hover border border-transparent'}`}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white" style={{ background: `hsl(${u.color})` }}>{u.avatar}</div>
-              <span className="text-sm text-foreground flex-1 text-left">{u.name}</span>
-              {selectedMembers.has(u.id) && <span className="text-primary">✓</span>}
+
+        {/* Selected members chips */}
+        {selectedMembers.size > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {Array.from(selectedMembers.values()).map(m => (
+              <span key={m.id} className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 border border-primary/30 text-xs text-foreground">
+                {m.name}
+                <button onClick={() => setSelectedMembers(prev => { const n = new Map(prev); n.delete(m.id); return n; })} className="text-muted-foreground hover:text-destructive">×</button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Search & Add Members ({selectedMembers.size})</label>
+        <input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search users..."
+          className="w-full mb-2 px-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+        <div className="flex-1 overflow-y-auto space-y-1 mb-4 min-h-[120px]">
+          {isSearching && <p className="text-xs text-muted-foreground text-center py-3">Searching...</p>}
+          {searchQuery.length < 2 && !isSearching && (
+            <p className="text-xs text-muted-foreground text-center py-3">Type at least 2 characters to search</p>
+          )}
+          {searchResults?.map(u => (
+            <button key={u.id} onClick={() => toggleMember(u)}
+              className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg transition-colors ${selectedMembers.has(String(u.id)) ? 'bg-primary/10 border border-primary/30' : 'hover:bg-dex-hover border border-transparent'}`}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white" style={{ background: `hsl(${(u.id * 137) % 360} 65% 55%)` }}>
+                {(u.displayName || u.username).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+              </div>
+              <div className="flex-1 text-left">
+                <span className="text-sm text-foreground">{u.displayName || u.username}</span>
+                <p className="text-[11px] text-muted-foreground">@{u.username}</p>
+              </div>
+              {selectedMembers.has(String(u.id)) && <span className="text-primary">✓</span>}
             </button>
           ))}
+          {searchResults?.length === 0 && searchQuery.length >= 2 && !isSearching && (
+            <p className="text-xs text-muted-foreground text-center py-3">No users found</p>
+          )}
         </div>
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-dex-hover">Cancel</button>
-          <button disabled={!name.trim() || selectedMembers.size === 0} onClick={() => onCreate(name, Array.from(selectedMembers), description)}
+          <button disabled={!name.trim() || selectedMembers.size === 0} onClick={() => onCreate(name, Array.from(selectedMembers.keys()), description)}
             className="px-5 py-2 rounded-lg text-sm bg-primary text-primary-foreground disabled:opacity-40">Create Group</button>
         </div>
       </div>
@@ -367,7 +407,11 @@ interface SchedulePickerModalProps {
 }
 
 export const SchedulePickerModal: React.FC<SchedulePickerModalProps> = ({ onSchedule, onCancel }) => {
-  const [dateStr, setDateStr] = useState('2026-02-11');
+  const [dateStr, setDateStr] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  });
   const [timeStr, setTimeStr] = useState('09:00');
 
   return (
@@ -541,7 +585,6 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave
           <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
         </div>
 
-        {/* Avatar & Name */}
         <div className="flex items-center gap-4 mb-4">
           <div className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white flex-shrink-0" style={{ background: `hsl(${chat.avatarColor})` }}>
             {chat.avatar}
@@ -555,7 +598,6 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave
         <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Description</label>
         <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full mt-1 mb-4 px-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none" />
 
-        {/* Settings */}
         <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Settings</div>
         <div className="space-y-1 mb-4">
           <div className="flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-dex-hover">
@@ -582,7 +624,6 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave
 
         <div className="h-px bg-border my-3" />
 
-        {/* Management */}
         <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Management</div>
         <div className="space-y-0.5 mb-4">
           <button onClick={onOpenInviteLinks} className="flex items-center justify-between w-full py-2.5 px-2 rounded-lg hover:bg-dex-hover text-sm text-foreground">
@@ -601,7 +642,6 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({ chat, onSave
 
         <div className="h-px bg-border my-3" />
 
-        {/* Delete */}
         {!showDeleteConfirm ? (
           <button onClick={() => setShowDeleteConfirm(true)} className="w-full py-2.5 px-2 rounded-lg text-sm text-destructive hover:bg-destructive/10 text-left transition-colors">
             🗑️ Delete Channel
@@ -668,7 +708,6 @@ export const EditGroupModal: React.FC<EditGroupModalProps> = ({ chat, onSave, on
           <button onClick={onClose} className="p-1 rounded hover:bg-dex-hover text-muted-foreground"><X size={18} /></button>
         </div>
 
-        {/* Avatar & Name */}
         <div className="flex items-center gap-4 mb-4">
           <div className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white flex-shrink-0" style={{ background: `hsl(${chat.avatarColor})` }}>
             {chat.avatar}
@@ -682,7 +721,6 @@ export const EditGroupModal: React.FC<EditGroupModalProps> = ({ chat, onSave, on
         <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Description</label>
         <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="w-full mt-1 mb-4 px-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none" />
 
-        {/* Type & History */}
         <div className="space-y-1 mb-4">
           <div className="flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-dex-hover">
             <span className="text-sm text-foreground">Group type</span>
@@ -700,7 +738,6 @@ export const EditGroupModal: React.FC<EditGroupModalProps> = ({ chat, onSave, on
 
         <div className="h-px bg-border my-3" />
 
-        {/* Slow Mode */}
         <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Slow Mode</div>
         <div className="flex flex-wrap gap-1.5 mb-4">
           {slowModeOptions.map(o => (
@@ -713,7 +750,6 @@ export const EditGroupModal: React.FC<EditGroupModalProps> = ({ chat, onSave, on
 
         <div className="h-px bg-border my-3" />
 
-        {/* Permissions */}
         <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Member Permissions</div>
         <div className="space-y-1 mb-4">
           {([
@@ -736,7 +772,6 @@ export const EditGroupModal: React.FC<EditGroupModalProps> = ({ chat, onSave, on
 
         <div className="h-px bg-border my-3" />
 
-        {/* Management */}
         <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Management</div>
         <div className="space-y-0.5 mb-4">
           <button onClick={onOpenInviteLinks} className="flex items-center justify-between w-full py-2.5 px-2 rounded-lg hover:bg-dex-hover text-sm text-foreground">
@@ -755,7 +790,6 @@ export const EditGroupModal: React.FC<EditGroupModalProps> = ({ chat, onSave, on
 
         <div className="h-px bg-border my-3" />
 
-        {/* Delete */}
         {!showDeleteConfirm ? (
           <button onClick={() => setShowDeleteConfirm(true)} className="w-full py-2.5 px-2 rounded-lg text-sm text-destructive hover:bg-destructive/10 text-left transition-colors">
             🗑️ Delete Group
@@ -831,12 +865,13 @@ export const InviteLinksModal: React.FC<InviteLinksModalProps> = ({ inviteLinks,
 interface AdminManagementModalProps {
   chat: Chat;
   users: User[];
+  currentUserId?: string;
   onPromote: (userId: string, title: string) => void;
   onDemote: (userId: string) => void;
   onClose: () => void;
 }
 
-export const AdminManagementModal: React.FC<AdminManagementModalProps> = ({ chat, users: allUsers, onPromote, onDemote, onClose }) => {
+export const AdminManagementModal: React.FC<AdminManagementModalProps> = ({ chat, users: allUsers, currentUserId, onPromote, onDemote, onClose }) => {
   const [showPromote, setShowPromote] = useState(false);
   const [promoteUserId, setPromoteUserId] = useState('');
   const [promoteTitle, setPromoteTitle] = useState('');
@@ -848,6 +883,8 @@ export const AdminManagementModal: React.FC<AdminManagementModalProps> = ({ chat
   const getUserInfo = (userId: string) => {
     return allUsers.find(u => u.id === userId) || members.find(m => m.id === userId);
   };
+
+  const isCurrentUser = (userId: string) => userId === currentUserId;
 
   return (
     <div className={MODAL_BACKDROP} onClick={onClose}>
@@ -868,11 +905,11 @@ export const AdminManagementModal: React.FC<AdminManagementModalProps> = ({ chat
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-medium text-foreground">{user?.name || admin.userId}</span>
-                    {admin.userId === 'me' && <Crown size={12} className="text-amber-500" />}
+                    {isCurrentUser(admin.userId) && <Crown size={12} className="text-amber-500" />}
                   </div>
                   {admin.title && <span className="text-[11px] text-primary">{admin.title}</span>}
                 </div>
-                {admin.userId !== 'me' && (
+                {!isCurrentUser(admin.userId) && (
                   <button onClick={() => onDemote(admin.userId)} className="px-2 py-1 rounded text-xs text-destructive hover:bg-destructive/10 transition-colors">
                     Demote
                   </button>
