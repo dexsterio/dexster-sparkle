@@ -813,7 +813,8 @@ const DexsterChat: React.FC = () => {
       {deleteMsg && <DeleteDialog message={deleteMsg} chatName={chat?.name || ''} onConfirm={handleDelete} onCancel={() => setDeleteMsg(null)} />}
       {(forwardMsg || bulkForwardTarget) && <ForwardModal chats={visibleChats} onForward={handleForward} onCancel={() => { setForwardMsg(null); setBulkForwardTarget(false); }} />}
       {showChannelModal && <CreateChannelModal onClose={() => setShowChannelModal(false)} onCreate={createChannel} />}
-      {showGroupModal && <CreateGroupModal onClose={() => setShowGroupModal(false)} onCreate={createGroup} />}
+      {showGroupModal && <CreateGroupModal onClose={() => setShowGroupModal(false)} onCreate={createGroup}
+        recentContacts={visibleChats.filter(c => c.type === 'personal' && c.id !== 'saved').slice(0, 10).map(c => ({ id: c.id, name: c.name, avatar: c.avatar, avatarColor: c.avatarColor, online: c.online }))} />}
       {showPollModal && <PollCreationModal onClose={() => setShowPollModal(false)} onCreate={createPoll} />}
       {pinConfirmMsg && <PinConfirmModal message={pinConfirmMsg} onConfirm={confirmPin} onCancel={() => setPinConfirmMsg(null)} />}
       {reportTarget && <ReportDialog onReport={handleReport} onCancel={() => setReportTarget(null)} />}
@@ -827,17 +828,24 @@ const DexsterChat: React.FC = () => {
       {showInviteLinks && chat && <InviteLinksModal inviteLinks={chat.inviteLinks || []} onCreate={() => createInviteLink()} onRevoke={revokeInviteLink} onClose={() => setShowInviteLinks(false)} />}
       {showAdminManagement && chat && <AdminManagementModal chat={chat} users={chat.members || []} currentUserId={userIdStr} onPromote={promoteAdmin} onDemote={demoteAdmin} onClose={() => setShowAdminManagement(false)} />}
       {showLeaveConfirm && chat && <LeaveConfirmDialog chatName={chat.name} chatType={chat.type} onConfirm={() => { leaveChat(activeChat); setShowLeaveConfirm(false); }} onCancel={() => setShowLeaveConfirm(false)} />}
-      {showNewChatModal && <NewChatModal onClose={() => setShowNewChatModal(false)} onStartChat={async (recipientId) => {
-        try {
-          const result = await createDM({ recipientId });
-          setShowNewChatModal(false);
-          setActiveChat(String((result as any).id));
-          queryClient.invalidateQueries({ queryKey: ['conversations'] });
-        } catch {
-          setShowNewChatModal(false);
-          showToast('Failed to start chat');
-        }
-      }} />}
+      {showNewChatModal && <NewChatModal
+        onClose={() => setShowNewChatModal(false)}
+        recentContacts={visibleChats
+          .filter(c => c.type === 'personal' && c.id !== 'saved')
+          .slice(0, 10)
+          .map(c => ({ id: c.id, name: c.name, avatar: c.avatar, avatarColor: c.avatarColor, online: c.online }))}
+        onStartChat={async (recipientId) => {
+          try {
+            const result = await createDM({ recipientId });
+            setShowNewChatModal(false);
+            setActiveChat(String((result as any).id));
+            queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          } catch {
+            setShowNewChatModal(false);
+            showToast('Failed to start chat');
+          }
+        }}
+      />}
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-card border border-border text-sm text-foreground shadow-lg animate-[toastIn_0.2s_ease-out] z-50">

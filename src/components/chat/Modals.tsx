@@ -138,9 +138,10 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({ onClose,
 interface CreateGroupModalProps {
   onClose: () => void;
   onCreate: (name: string, memberIds: string[], description: string) => void;
+  recentContacts?: { id: string; name: string; avatar: string; avatarColor: string; online?: boolean }[];
 }
 
-export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onCreate }) => {
+export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onCreate, recentContacts }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -195,8 +196,29 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onC
           className="w-full mb-2 px-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
         <div className="flex-1 overflow-y-auto space-y-1 mb-4 min-h-[120px]">
+          {/* Recent contacts — shown when no search query */}
+          {searchQuery.length < 2 && recentContacts && recentContacts.length > 0 && (
+            <div className="mb-2">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Recent</p>
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+                {recentContacts.filter(c => !selectedMembers.has(c.id)).map(c => (
+                  <button key={c.id} onClick={() => {
+                    const initials = c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                    setSelectedMembers(prev => { const n = new Map(prev); n.set(c.id, { id: c.id, name: c.name, avatar: initials, color: c.avatarColor }); return n; });
+                  }}
+                    className="flex flex-col items-center gap-1.5 min-w-[56px] group">
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold text-white transition-transform group-hover:scale-105"
+                      style={{ background: `hsl(${c.avatarColor})` }}>
+                      {c.avatar}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground truncate w-full text-center">{c.name.split(' ')[0]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {isSearching && <p className="text-xs text-muted-foreground text-center py-3">Searching...</p>}
-          {searchQuery.length < 2 && !isSearching && (
+          {searchQuery.length < 2 && !isSearching && !recentContacts?.length && (
             <p className="text-xs text-muted-foreground text-center py-3">Type at least 2 characters to search</p>
           )}
           {searchResults?.map(u => (
@@ -978,9 +1000,10 @@ export const LeaveConfirmDialog: React.FC<LeaveConfirmDialogProps> = ({ chatName
 interface NewChatModalProps {
   onClose: () => void;
   onStartChat: (userId: number) => void;
+  recentContacts?: { id: string; name: string; avatar: string; avatarColor: string; online?: boolean }[];
 }
 
-export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onStartChat }) => {
+export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onStartChat, recentContacts }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const { data: searchResults, isLoading: isSearching } = useUserSearch(searchQuery);
 
@@ -998,9 +1021,34 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onStartChat
           placeholder="Search users..."
           className="w-full mb-3 px-3 py-2 rounded-lg bg-muted text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
         />
+
+        {/* Recent contacts — shown when no search query */}
+        {searchQuery.length < 2 && recentContacts && recentContacts.length > 0 && (
+          <div className="mb-3">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent</p>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
+              {recentContacts.map(c => (
+                <button key={c.id} onClick={() => onStartChat(Number(c.id))}
+                  className="flex flex-col items-center gap-1.5 min-w-[60px] group">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold text-white transition-transform group-hover:scale-105"
+                      style={{ background: `hsl(${c.avatarColor})` }}>
+                      {c.avatar}
+                    </div>
+                    {c.online && (
+                      <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-dex-online border-2 border-card" />
+                    )}
+                  </div>
+                  <span className="text-[11px] text-muted-foreground truncate w-full text-center">{c.name.split(' ')[0]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto space-y-1 min-h-[120px]">
           {isSearching && <p className="text-xs text-muted-foreground text-center py-3">Searching...</p>}
-          {searchQuery.length < 2 && !isSearching && (
+          {searchQuery.length < 2 && !isSearching && !recentContacts?.length && (
             <p className="text-xs text-muted-foreground text-center py-3">Type at least 2 characters to search</p>
           )}
           {searchResults?.map(u => (
